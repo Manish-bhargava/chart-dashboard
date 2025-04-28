@@ -16,6 +16,13 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { CustomTooltip } from "./CustomTooltip"
 import { toast } from "react-hot-toast"
 const BASE_URL = import.meta.env.VITE_API_URL;
+if (!BASE_URL) {
+  console.error('VITE_API_URL environment variable is not set');
+  toast.error('API configuration error');
+}
+
+// Ensure BASE_URL ends with a slash
+const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
 
 export function RadarChartView({ selectedRegions, selectedUnits }) {
   const [selectedCompetencies, setSelectedCompetencies] = useState([])
@@ -36,7 +43,8 @@ export function RadarChartView({ selectedRegions, selectedUnits }) {
       setIsLoading(true)
       try {
         const token = localStorage.getItem("token")
-        const response = await fetch(`${BASE_URL}reportanalytics/getRadarChartMainCompetency`, {
+        if (!apiBaseUrl) return;
+const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -76,7 +84,8 @@ export function RadarChartView({ selectedRegions, selectedUnits }) {
       setIsLoading(true)
       try {
         const token = localStorage.getItem("token")
-        const response = await fetch(`${BASE_URL}reportanalytics/getSubCompetency`, {
+        if (!apiBaseUrl) return;
+const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
