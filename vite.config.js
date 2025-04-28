@@ -8,7 +8,6 @@ const __dirname = dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   return {
-    base: '/', // 👈 ADD THIS LINE
     plugins: [react()],
     resolve: {
       alias: {
