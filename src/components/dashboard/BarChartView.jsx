@@ -27,6 +27,8 @@ export function BarChartView({
   selectedUnits, 
   availableUnits, 
   availableRegions, 
+  unitsByRegion,
+  onFilterChange,
 }) {
   const [selectedCompetencies, setSelectedCompetencies] = useState([]) // Array of IDs
   const [availableCompetencies, setAvailableCompetencies] = useState([]) // Array of {value, label}
@@ -179,6 +181,40 @@ export function BarChartView({
 
     fetchChartData();
   }, [BASE_URL, selectedUnits, pendingSelectedCompetencies]);
+
+  const handleRegionChange = (newSelectedRegions) => {
+    setSelectedRegions(newSelectedRegions);
+    const selectedRegionUnits = newSelectedRegions.flatMap(region => unitsByRegion[region] || []);
+    setSelectedUnits(selectedRegionUnits);
+    onFilterChange({ regions: newSelectedRegions, units: selectedRegionUnits });
+  };
+
+  const handleUnitChange = (newSelectedUnits) => {
+    setSelectedUnits(newSelectedUnits);
+    const selectedUnitRegions = new Set(
+      units
+        .filter(unit => newSelectedUnits.includes(unit.value))
+        .map(unit => unit.region)
+    );
+    const newRegions = Array.from(selectedUnitRegions);
+    // Only update if regions changed
+    if (JSON.stringify(newRegions.sort()) !== JSON.stringify(selectedRegions.sort())) {
+      setSelectedRegions(newRegions);
+    }
+    onFilterChange({ regions: newRegions, units: newSelectedUnits });
+  };
+
+  useEffect(() => {
+    if (Object.keys(unitsByRegion).length > 0 && selectedRegions.length > 0) {
+      const unitsToSelect = selectedRegions.flatMap(region => unitsByRegion[region] || []);
+      setSelectedUnits(unitsToSelect);
+      // Also notify parent
+      onFilterChange({
+        regions: selectedRegions,
+        units: unitsToSelect
+      });
+    }
+  }, [unitsByRegion, selectedRegions]);
 
   // Function to apply pending filter changes
   const handleApplyFilters = () => {

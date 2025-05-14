@@ -21,38 +21,40 @@ const getPercentileBackgroundColor = (value) => {
 };
 
 // TODO: User needs to provide this function or its logic
-const getScoreBackgroundColor = (value, scoreRanges) => {
-  // Example: scoreRanges = { topTier: {min: 45, max: 50, color: 'bg-green-600'}, ... }
-  // This function needs to be defined based on user's criteria for scores
+const getScoreBackgroundColor = (value) => {
   if (value === null || value === undefined) return 'bg-gray-100';
-  // Placeholder - replace with actual logic based on scoreRanges
-  if (value > 25) return 'bg-blue-500 text-white'; 
-  if (value > 15) return 'bg-blue-300 text-black';
-  return 'bg-blue-100 text-black';
+  if (value >= 8) return 'bg-green-600 text-white';
+  if (value >= 7) return 'bg-green-500 text-white';
+  if (value >= 6) return 'bg-lime-500 text-black';
+  if (value >= 5) return 'bg-yellow-400 text-black';
+  if (value >= 4) return 'bg-orange-400 text-black';
+  if (value >= 3) return 'bg-orange-500 text-white';
+  return 'bg-red-500 text-white';
 };
 
 const BASE_URL = import.meta.env.VITE_API_URL;
+if (!BASE_URL) {
+  console.error('VITE_API_URL is not defined in environment variables');
+}
+
+// Ensure BASE_URL ends with a slash
+const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
 
 // Helper function to get color based on value
 const getHeatMapColor = (value, isPercentile) => {
-  // Normalize value to 0-1 range
-  const normalizedValue = isPercentile ? value / 100 : value / 10;
+  if (value === null || value === undefined) return "#f3f4f6"; // gray-100 for empty cells
   
-  // Color ranges from red (low) to green (high)
-  const colors = [
-    { threshold: 0.2, color: "#ff0000" },
-    { threshold: 0.4, color: "#ff9900" },
-    { threshold: 0.6, color: "#ffff00" },
-    { threshold: 0.8, color: "#99ff00" },
-    { threshold: 1.0, color: "#00ff00" },
-  ];
-
-  for (let i = 0; i < colors.length; i++) {
-    if (normalizedValue <= colors[i].threshold) {
-      return colors[i].color;
-    }
-  }
-  return colors[colors.length - 1].color;
+  // Normalize value to 0-100 range
+  const normalizedValue = isPercentile ? value : (value * 10);
+  
+  // More distinct color ranges
+  if (normalizedValue >= 90) return "#1e40af"; // dark blue for top tier
+  if (normalizedValue >= 80) return "#059669"; // emerald-600 for high performing
+  if (normalizedValue >= 70) return "#7c3aed"; // purple-600 for above average
+  if (normalizedValue >= 60) return "#fbbf24"; // amber-400 for average
+  if (normalizedValue >= 50) return "#f97316"; // orange-500 for below average
+  if (normalizedValue >= 40) return "#dc2626"; // red-600 for needs focus
+  return "#991b1b"; // dark red for priority concern
 };
 
 export function HeatmapView({ selectedUnits }) {
@@ -60,49 +62,67 @@ export function HeatmapView({ selectedUnits }) {
   const [viewMode, setViewMode] = useState("score"); // "score" or "percentile"
   const [heatMapData, setHeatMapData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedCompetencyFilter, setSelectedCompetencyFilter] = useState('all'); // 'all' or a specific section_id
 
   useEffect(() => {
     const fetchHeatMapData = async () => {
       if (!selectedUnits?.length) {
         setHeatMapData(null);
+        setError("Please select at least one unit");
         return;
       }
 
       setIsLoading(true);
+      setError(null);
+      
       try {
-        const token = localStorage.getItem("token");
+        console.log("[Debug] Fetching heatmap data for units:", selectedUnits);
+        
         const response = await axios.post(
-          `${BASE_URL}reportanalytics/getRadarChartMainCompetency`,
+          `${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`,
           {
             unit: selectedUnits,
           },
           {
             headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
             },
           }
         );
 
-        if (response.data?.status === "success") {
+        console.log("[Debug] API Response:", response.data);
+
+        if (response.data?.status === "success" && response.data.data) {
+          if (!response.data.data.section_detail || !response.data.data.unit_details) {
+            throw new Error("Invalid data structure received from API");
+          }
           setHeatMapData(response.data.data);
+        } else {
+          throw new Error("Invalid response format from API");
         }
       } catch (error) {
-        console.error("Error fetching heat map data:", error);
+        console.error("[Debug] Error fetching heat map data:", error);
+        setError(error.message || "Failed to fetch heatmap data");
+        setHeatMapData(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchHeatMapData();
-  }, [selectedUnits]);
+  }, [selectedUnits, apiBaseUrl]);
 
   const processedData = useMemo(() => {
     if (!heatMapData) return { headers: [], rows: [], competencyOptions: [] };
 
     const { section_detail, unit_details } = heatMapData;
-    if (!section_detail || !unit_details) return { headers: [], rows: [], competencyOptions: [] };
+    if (!section_detail || !unit_details) {
+      console.error("[Debug] Invalid heatmap data structure:", heatMapData);
+      return { headers: [], rows: [], competencyOptions: [] };
+    }
+
+    console.log("[Debug] Processing heatmap data:", { section_detail, unit_details });
 
     const competencyOptions = [
       { value: 'all', label: 'Overview (All Competencies)' },
@@ -118,7 +138,10 @@ export function HeatmapView({ selectedUnits }) {
 
     const rows = selectedUnits.map(unitName => {
       const unitData = unit_details[unitName];
-      if (!unitData) return null; // Should not happen if API returns data for selectedUnits
+      if (!unitData) {
+        console.warn(`[Debug] No data found for unit: ${unitName}`);
+        return null;
+      }
 
       const rowValues = {};
       let sumForOverall = 0;
@@ -129,10 +152,12 @@ export function HeatmapView({ selectedUnits }) {
         const valueObj = unitData[sectionId];
         let value = null;
         if (valueObj) {
-          value = viewMode === 'scores' ? valueObj.unit_section_score_average : valueObj.unit_section_score_percentile;
+          value = viewMode === 'score' ? 
+            valueObj.unit_section_score_average : 
+            valueObj.unit_section_score_percentile;
           if (typeof value === 'number' && !isNaN(value)) {
-             sumForOverall += value;
-             countForOverall++;
+            sumForOverall += value;
+            countForOverall++;
           }
         }
         rowValues[comp.section_name] = value;
@@ -150,17 +175,18 @@ export function HeatmapView({ selectedUnits }) {
       };
     }).filter(row => row !== null);
 
+    console.log("[Debug] Processed data:", { headers, rows, competencyOptions });
     return { headers, rows, competencyOptions };
   }, [heatMapData, viewMode, selectedCompetencyFilter, selectedUnits]);
 
   const performanceLegend = [
-    { label: '90%+: Top Tier', color: 'bg-green-600' },
-    { label: '80-89%: High Performing', color: 'bg-green-500' },
-    { label: '70-79%: Above Average', color: 'bg-lime-500' }, 
-    { label: '60-69%: Average', color: 'bg-yellow-400' },
-    { label: '50-59%: Below Average', color: 'bg-orange-400' },
-    { label: '40-49%: Needs Focus', color: 'bg-orange-500' },
-    { label: '<40%: Priority Concern', color: 'bg-red-500' },
+    { label: '90%+: Top Tier', color: 'bg-blue-800' },         // dark blue
+    { label: '80-89%: High Performing', color: 'bg-emerald-600' }, // emerald
+    { label: '70-79%: Above Average', color: 'bg-purple-600' }, // purple
+    { label: '60-69%: Average', color: 'bg-amber-400' },       // amber
+    { label: '50-59%: Below Average', color: 'bg-orange-500' }, // orange
+    { label: '40-49%: Needs Focus', color: 'bg-red-600' },     // bright red
+    { label: '<40%: Priority Concern', color: 'bg-red-900' },   // dark red
   ];
 
   // TODO: User needs to provide scoreRangesForColoring for 'scores' viewMode
@@ -179,45 +205,58 @@ export function HeatmapView({ selectedUnits }) {
     const units = Object.keys(heatMapData.unit_details);
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              <th className="p-2 border"></th>
-              {sections.map((section) => (
-                <th key={section.quiz_section_id} className="p-2 border text-sm font-medium">
-                  {section.section_name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {units.map((unit) => (
-              <tr key={unit}>
-                <td className="p-2 border font-medium">{unit}</td>
-                {sections.map((section) => {
-                  const sectionData = heatMapData.unit_details[unit][section.quiz_section_id];
-                  const value = viewMode === "score" 
-                    ? sectionData?.unit_section_score_average
-                    : sectionData?.unit_section_score_percentile;
-                  
-                  return (
-                    <td
-                      key={section.quiz_section_id}
-                      className="p-2 border text-center"
-                      style={{
-                        backgroundColor: getHeatMapColor(value, viewMode === "percentile"),
-                        color: "black",
-                      }}
-                    >
-                      {value?.toFixed(2)}
-                    </td>
-                  );
-                })}
+      <div className="space-y-4">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="p-2 border"></th>
+                {sections.map((section) => (
+                  <th key={section.quiz_section_id} className="p-2 border text-sm font-medium">
+                    {section.section_name}
+                  </th>
+                ))}
               </tr>
+            </thead>
+            <tbody>
+              {units.map((unit) => (
+                <tr key={unit}>
+                  <td className="p-2 border font-medium">{unit}</td>
+                  {sections.map((section) => {
+                    const sectionData = heatMapData.unit_details[unit][section.quiz_section_id];
+                    const value = viewMode === "score" 
+                      ? sectionData?.unit_section_score_average
+                      : sectionData?.unit_section_score_percentile;
+                    
+                    return (
+                      <td
+                        key={section.quiz_section_id}
+                        className="p-2 border text-center"
+                        style={{
+                          backgroundColor: getHeatMapColor(value, viewMode === "percentile"),
+                          color: "black",
+                        }}
+                      >
+                        {value?.toFixed(2)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 p-4 bg-white rounded-lg shadow">
+          <h3 className="text-sm font-semibold mb-2">Performance Legend</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {performanceLegend.map((item, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <div className={`w-4 h-4 rounded ${item.color}`}></div>
+                <span className="text-sm">{item.label}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     );
   };
@@ -226,7 +265,23 @@ export function HeatmapView({ selectedUnits }) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading heatmap data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <p className="text-red-500">{error}</p>
+            <p className="mt-2 text-sm text-gray-600">Please try selecting different units or refreshing the page</p>
+          </div>
         </CardContent>
       </Card>
     );

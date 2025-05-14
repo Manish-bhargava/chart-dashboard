@@ -125,7 +125,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
           `${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`,
           { unit: selectedUnits },
           {
-            headers: {
+          headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             }
@@ -220,7 +220,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
     };
 
     if (regions.length > 0 && Object.keys(unitsByRegion).length > 0) {
-      fetchData();
+    fetchData();
     }
   }, [selectedUnits, regions, unitsByRegion]);
 

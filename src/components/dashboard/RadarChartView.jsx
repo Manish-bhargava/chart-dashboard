@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import {
   RadarChart,
   PolarGrid,
@@ -24,7 +24,7 @@ if (!BASE_URL) {
 // Ensure BASE_URL ends with a slash
 const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
 
-export function RadarChartView({ selectedRegions, selectedUnits }) {
+export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion = {} }) {
   const [selectedCompetencies, setSelectedCompetencies] = useState([])
   const [selectedSubCompetencies, setSelectedSubCompetencies] = useState([])
   const [chartType, setChartType] = useState("area")
@@ -34,6 +34,7 @@ export function RadarChartView({ selectedRegions, selectedUnits }) {
   const [apiData, setApiData] = useState(null)
   const [subCompetencyData, setSubCompetencyData] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [subCompetencyScores, setSubCompetencyScores] = useState(null)
 
   // Fetch main competency data
   useEffect(() => {
@@ -44,12 +45,14 @@ export function RadarChartView({ selectedRegions, selectedUnits }) {
       try {
         const token = localStorage.getItem("token")
         if (!apiBaseUrl) return;
-const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`, {
+        const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`,
+            "Access-Control-Allow-Origin": "*"
           },
+          credentials: 'include',
           body: JSON.stringify({
             unit: selectedUnits
           })
@@ -76,7 +79,7 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainComp
     }
 
     fetchRadarData()
-  }, [selectedUnits])
+  }, [selectedUnits, apiBaseUrl])
 
   // Fetch subcompetency data
   useEffect(() => {
@@ -85,12 +88,14 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainComp
       try {
         const token = localStorage.getItem("token")
         if (!apiBaseUrl) return;
-const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
+        const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`,
+            "Access-Control-Allow-Origin": "*"
           },
+          credentials: 'include',
           body: JSON.stringify({})
         })
 
@@ -109,7 +114,58 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
     }
 
     fetchSubCompetencyData()
-  }, [])
+  }, [apiBaseUrl])
+
+  // Fetch sub-competency scores when a main competency is selected
+  useEffect(() => {
+    const fetchSubCompetencyScores = async () => {
+      if (!selectedMainCompetency || !selectedUnits || selectedUnits.length === 0 || !apiData) return;
+
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!apiBaseUrl) return;
+
+        // Find the section ID for the selected main competency
+        const sectionId = Object.entries(apiData?.section_detail || {}).find(
+          ([_, section]) => section.section_name === selectedMainCompetency
+        )?.[0];
+
+        if (!sectionId) {
+          console.error("Section ID not found for selected competency");
+          return;
+        }
+
+        const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCometencyUnitReport`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "Access-Control-Allow-Origin": "*"
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            unit: selectedUnits,
+            section_id: [parseInt(sectionId)]
+          })
+        });
+
+        const data = await response.json();
+        if (data.status === "success") {
+          setSubCompetencyScores(data.data);
+        } else {
+          toast.error("Failed to fetch sub-competency scores");
+        }
+      } catch (error) {
+        console.error("Error fetching sub-competency scores:", error);
+        toast.error("An error occurred while fetching sub-competency scores");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSubCompetencyScores();
+  }, [selectedMainCompetency, selectedUnits, apiData, apiBaseUrl]);
 
   const generateData = (apiData, selectedUnits) => {
     if (!apiData || !apiData.section_detail || !apiData.unit_details) return []
@@ -129,7 +185,6 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
             )?.[0]
             if (sectionId && unitData[sectionId]) {
               const originalValue = unitData[sectionId].unit_section_score_average
-              // Use the original value directly
               dataPoint[unit] = originalValue
             }
           }
@@ -137,7 +192,7 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
         return dataPoint
       })
     } else {
-      if (!selectedMainCompetency || !subCompetencyData) return []
+      if (!selectedMainCompetency || !subCompetencyData || !subCompetencyScores) return []
       
       // Find the selected competency in the subcompetency data
       const competencySection = subCompetencyData.find(
@@ -145,17 +200,37 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
       )
       
       if (!competencySection) return []
+
+      // Find the section ID for the selected main competency
+      const sectionId = Object.entries(apiData?.section_detail || {}).find(
+        ([_, section]) => section.section_name === selectedMainCompetency
+      )?.[0];
+
+      if (!sectionId) return [];
       
       // Get topics (subcompetencies) from the API data
       const subCompetencies = competencySection.topics.map(topic => topic.topic_name)
+      const topicIdMap = competencySection.topics.reduce((acc, topic) => {
+        acc[topic.topic_name] = topic.topic_id;
+        return acc;
+      }, {});
       
       return subCompetencies.map(sub => {
         const dataPoint = {
           subject: sub,
         }
         selectedUnits.forEach((unit) => {
-          // For now, use a placeholder value since we don't have actual subcompetency scores
-          dataPoint[unit] = Math.random() * 10
+          // Get the topic ID for this sub-competency
+          const topicId = topicIdMap[sub];
+          if (!topicId) return;
+
+          // Get the unit's data from the scores
+          const unitData = subCompetencyScores[unit];
+          if (!unitData || !unitData[sectionId]) return;
+
+          // Get the topic score
+          const topicScore = unitData[sectionId].topic_detail[topicId]?.unit_topic_score_average || 0;
+          dataPoint[unit] = topicScore;
         })
         return dataPoint
       })
@@ -300,6 +375,35 @@ const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
   const handleMainCompetencyChange = (value) => {
     setSelectedMainCompetency(value)
   }
+
+  const allUnits = useMemo(() => {
+    if (!unitsByRegion) return [];
+    const units = [];
+    Object.values(unitsByRegion).forEach(regionUnits => {
+      regionUnits.forEach(unit => {
+        if (!units.some(u => u.value === unit.value)) {
+          units.push(unit);
+        }
+      });
+    });
+    return units;
+  }, [unitsByRegion]);
+
+  const availableUnits = useMemo(() => {
+    if (!unitsByRegion || Object.keys(unitsByRegion).length === 0) return [];
+    if (!selectedRegions || selectedRegions.length === 0) return allUnits;
+    
+    const units = [];
+    selectedRegions.forEach(regionValue => {
+      const regionUnits = unitsByRegion[regionValue] || [];
+      regionUnits.forEach(unit => {
+        if (!units.some(u => u.value === unit.value)) {
+          units.push(unit);
+        }
+      });
+    });
+    return units;
+  }, [selectedRegions, unitsByRegion, allUnits]);
 
   return (
     <Card className="h-full">

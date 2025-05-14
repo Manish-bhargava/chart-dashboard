@@ -1,5 +1,11 @@
 "use client"
 const BASE_URL = import.meta.env.VITE_API_URL;
+if (!BASE_URL) {
+  console.error('VITE_API_URL environment variable is not set');
+}
+
+// Ensure BASE_URL ends with a slash
+const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
 
 import React, { useState, useEffect, useMemo } from "react"
 import {
@@ -105,12 +111,14 @@ export default function Dashboard() {
         setError(null)
         
         const token = localStorage.getItem("token")
-        const response = await fetch(`${BASE_URL}/reportanalytics/getUnitList`, {
+        const response = await fetch(`${apiBaseUrl}reportanalytics/getUnitList`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+            "Authorization": `Bearer ${token}`,
+            "Access-Control-Allow-Origin": "*"
           },
+          credentials: 'include',
           body: JSON.stringify({})
         })
 
@@ -119,39 +127,38 @@ export default function Dashboard() {
         }
 
         const data = await response.json()
-        console.log("Raw API Response (getUnitList):", data) // Log raw data
+        console.log("Raw API Response (getUnitList):", data)
 
         if (data.status === "success" && data.units) {
           const rawUnitsData = data.units
-          console.log("Raw Units Data:", rawUnitsData) // Log units part
+          console.log("Raw Units Data:", rawUnitsData)
 
           // Format regions: [{ value: 'Region Name', label: 'Region Name' }, ...]
           const regionsOptions = Object.keys(rawUnitsData).map(regionName => ({
             value: regionName,
             label: regionName
           }))
-          console.log("Formatted Regions Options:", regionsOptions) // Log formatted regions
-          setRegions(regionsOptions) // Store formatted regions
+          console.log("Formatted Regions Options:", regionsOptions)
+          setRegions(regionsOptions)
 
-          // Format units within each region: { 'Region Name': [{ value: 'Unit Name', label: 'Unit Name' }, ...], ... }
+          // Format units within each region
           const formattedUnitsByRegion = {}
-          Object.keys(rawUnitsData).forEach(regionName => {
-            formattedUnitsByRegion[regionName] = rawUnitsData[regionName].map(unitName => ({
+          Object.entries(rawUnitsData).forEach(([regionName, units]) => {
+            formattedUnitsByRegion[regionName] = units.map(unitName => ({
               value: unitName,
               label: unitName
             }))
           })
-          console.log("Formatted Units By Region:", formattedUnitsByRegion) // Log formatted units
-          setUnitsByRegion(formattedUnitsByRegion) // Store formatted units
+          console.log("Formatted Units By Region:", formattedUnitsByRegion)
+          setUnitsByRegion(formattedUnitsByRegion)
 
-          // Select the first region and its units by default (using values/IDs)
+          // Select the first region and its units by default
           if (regionsOptions.length > 0) {
-            const firstRegionValue = regionsOptions[0].value // Get the value ('Region Name')
-            setSelectedRegions([firstRegionValue]) // Select by value
+            const firstRegionValue = regionsOptions[0].value
+            setSelectedRegions([firstRegionValue])
 
-            // Get units for the first region using the value, ensure fallback to empty array
+            // Get units for the first region
             const firstRegionUnits = formattedUnitsByRegion[firstRegionValue] || []
-            // Select all unit values (IDs) for the first region by default
             setSelectedUnits(firstRegionUnits.map(unit => unit.value))
           }
         } else {
@@ -166,54 +173,89 @@ export default function Dashboard() {
     }
 
     fetchData()
-  }, [])
+  }, [apiBaseUrl])
 
   // Get all available units
   const allUnits = useMemo(() => {
-    const units = new Set()
+    const units = []
     Object.values(unitsByRegion).forEach(regionUnits => {
-      regionUnits.forEach(unit => units.add(unit.value))
+      regionUnits.forEach(unit => {
+        if (!units.some(u => u.value === unit.value)) {
+          units.push(unit)
+        }
+      })
     })
-    return Array.from(units)
+    return units
   }, [unitsByRegion])
 
-  // Get filtered units based on selected regions, formatted for SimpleMultiSelect
-  const availableUnits = useMemo(() => {
-    if (!unitsByRegion || Object.keys(unitsByRegion).length === 0) return [];
-
-    // If no regions selected, show all units from all regions
-    if (!selectedRegions || selectedRegions.length === 0) {
-      return Object.values(unitsByRegion).flat();
-    }
-
-    // Show units from selected regions
-    return selectedRegions.flatMap(regionValue => unitsByRegion[regionValue] || []);
-  }, [selectedRegions, unitsByRegion]);
+  // Handle unit selection
+  const handleUnitChange = (selectedUnitValues) => {
+    console.log("[Debug] Manually Selected Units:", selectedUnitValues);
+    
+    // Simply update selected units without affecting regions
+    setSelectedUnits(selectedUnitValues);
+  };
 
   // Handle region selection
   const handleRegionChange = (selectedRegionValues) => {
-    console.log("Selected regions:", selectedRegionValues);
+    console.log("[Debug] Selected Region(s):", selectedRegionValues);
     setSelectedRegions(selectedRegionValues);
     
-    // Don't automatically select all units when regions change
-    // Let the user choose units manually
+    // If regions are selected, automatically select their units
+    if (selectedRegionValues && selectedRegionValues.length > 0) {
+      const unitsToSelect = [];
+      selectedRegionValues.forEach(region => {
+        const unitsForRegion = unitsByRegion[region] || [];
+        unitsToSelect.push(...unitsForRegion.map(unit => unit.value));
+      });
+      console.log("[Debug] Automatically selecting units for region(s):", unitsToSelect);
+      setSelectedUnits(unitsToSelect);
+    } else {
+      // If no regions selected, clear units only if they were selected via region
+      setSelectedUnits([]);
+    }
   };
 
-  // Handle unit selection
-  const handleUnitChange = (selectedUnits) => {
-    console.log("Selected units:", selectedUnits);
-    setSelectedUnits(selectedUnits);
+  // Get filtered units based on selected regions
+  const availableUnits = useMemo(() => {
+    if (!unitsByRegion || Object.keys(unitsByRegion).length === 0) return [];
+
+    // If no regions selected, show all available units
+    if (!selectedRegions || selectedRegions.length === 0) {
+      return allUnits;
+    }
+
+    // Show units from selected regions
+    const units = [];
+    selectedRegions.forEach(regionValue => {
+      const regionUnits = unitsByRegion[regionValue] || [];
+      regionUnits.forEach(unit => {
+        if (!units.some(u => u.value === unit.value)) {
+          units.push(unit);
+        }
+      });
+    });
+    return units;
+  }, [selectedRegions, unitsByRegion, allUnits]);
+
+  const getScoreBackgroundColor = (value) => {
+    if (value === null || value === undefined) return 'bg-gray-100';
+    if (value >= 8) return 'bg-green-600 text-white';
+    if (value >= 7) return 'bg-green-500 text-white';
+    // ... more ranges ...
   };
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard data...</p>
-        </div>
-      </div>
-    )
+      <Card>
+        <CardContent className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading heatmap data...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   if (error) {
@@ -367,6 +409,7 @@ export default function Dashboard() {
                     <RadarChartView
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
+                      unitsByRegion={unitsByRegion}
                     />
                   )}
                   {activeTab === "bar" && (
