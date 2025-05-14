@@ -79,21 +79,6 @@ export function HeatmapView({ selectedUnits }) {
       try {
         console.log("[Debug] Fetching heatmap data for units:", selectedUnits);
         
-<<<<<<< HEAD
-        const response = await axios.post(
-          `${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`,
-          {
-            unit: selectedUnits,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            },
-          }
-        );
-
-        console.log("[Debug] API Response:", response.data);
-=======
         const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
           unit: selectedUnits
         }, {
@@ -103,7 +88,6 @@ export function HeatmapView({ selectedUnits }) {
         });
 
         console.log("[Debug] Heatmap API Response:", response.data);
->>>>>>> 48e6ff0 (resolve cors iisue)
 
         if (response.data?.status === "success" && response.data.data) {
           if (!response.data.data.section_detail || !response.data.data.unit_details) {
@@ -123,11 +107,7 @@ export function HeatmapView({ selectedUnits }) {
     };
 
     fetchHeatMapData();
-<<<<<<< HEAD
-  }, [selectedUnits, apiBaseUrl]);
-=======
   }, [selectedUnits]);
->>>>>>> 48e6ff0 (resolve cors iisue)
 
   const processedData = useMemo(() => {
     if (!heatMapData) return { headers: [], rows: [], competencyOptions: [] };
