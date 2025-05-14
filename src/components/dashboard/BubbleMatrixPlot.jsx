@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import axios from 'axios';
 
+<<<<<<< HEAD
 // Get API URL from environment variables
 const BASE_URL = import.meta.env.VITE_API_URL;
 if (!BASE_URL) {
@@ -21,6 +22,8 @@ if (!BASE_URL) {
 // Ensure BASE_URL ends with a slash
 const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
 
+=======
+>>>>>>> 48e6ff0 (resolve cors iisue)
 // Define competency colors with their specific colors as per requirements
 const COMPETENCY_COLORS = {
   'Leadership': '#60a5fa',          // Blue
@@ -41,6 +44,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
   useEffect(() => {
     const fetchRegionsAndUnits = async () => {
       try {
+<<<<<<< HEAD
         const token = localStorage.getItem("token");
         
         // Fetch regions
@@ -76,6 +80,29 @@ export function BubbleMatrixPlot({ selectedUnits }) {
 
         if (unitListResponse.data?.status === "success") {
           console.log("[Debug] Units by region from API:", unitListResponse.data.units);
+=======
+        console.log("[Debug] Fetching regions...");
+        const regionsResponse = await axios.post('/api/reportanalytics/getRegionList', {}, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log("[Debug] Regions response:", regionsResponse.data);
+        if (regionsResponse.data?.regions) {
+          setRegions(regionsResponse.data.regions);
+        }
+
+        console.log("[Debug] Fetching unit list...");
+        const unitListResponse = await axios.post('/api/reportanalytics/getUnitList', {}, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log("[Debug] Units response:", unitListResponse.data);
+        if (unitListResponse.data?.status === "success") {
+>>>>>>> 48e6ff0 (resolve cors iisue)
           setUnitsByRegion(unitListResponse.data.units);
         }
       } catch (error) {
@@ -106,16 +133,20 @@ export function BubbleMatrixPlot({ selectedUnits }) {
         return;
       }
 
+<<<<<<< HEAD
       if (!apiBaseUrl) {
         console.error("[Debug] API URL not configured");
         setError("API URL is not configured");
         return;
       }
 
+=======
+>>>>>>> 48e6ff0 (resolve cors iisue)
       setIsLoading(true);
       setError(null);
 
       try {
+<<<<<<< HEAD
         const token = localStorage.getItem("token");
         console.log("[Debug] Token present:", !!token);
         
@@ -136,6 +167,21 @@ export function BubbleMatrixPlot({ selectedUnits }) {
           const { section_detail, unit_details } = response.data.data;
           console.log("[Debug] Section details:", section_detail);
           console.log("[Debug] Unit details:", unit_details);
+=======
+        console.log("[Debug] Fetching competency data for units:", selectedUnits);
+        const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
+          unit: selectedUnits
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log("[Debug] Competency data response:", response.data);
+
+        if (response.data?.status === "success" && response.data.data) {
+          const { section_detail, unit_details } = response.data.data;
+>>>>>>> 48e6ff0 (resolve cors iisue)
           
           // Get competencies from section details
           const competencyList = Object.values(section_detail).map(section => section.section_name);
@@ -155,6 +201,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
             }
           });
 
+<<<<<<< HEAD
           // Sort units within each region
           Object.keys(groupedUnits).forEach(region => {
             groupedUnits[region].sort((a, b) => {
@@ -173,19 +220,32 @@ export function BubbleMatrixPlot({ selectedUnits }) {
             const unitsInRegion = groupedUnits[region] || [];
             console.log("[Debug] Units in", region, ":", unitsInRegion);
 
+=======
+          // Transform data for visualization
+          const transformedData = [];
+          regions.forEach((region, regionIndex) => {
+            const unitsInRegion = groupedUnits[region] || [];
+>>>>>>> 48e6ff0 (resolve cors iisue)
             unitsInRegion.forEach((unit, unitInRegionIndex) => {
               const unitData = unit_details[unit];
               if (unitData) {
                 Object.entries(unitData).forEach(([sectionId, scores]) => {
                   const section = section_detail[sectionId];
                   if (section) {
+<<<<<<< HEAD
                     // Calculate x position
+=======
+>>>>>>> 48e6ff0 (resolve cors iisue)
                     const regionStart = regionIndex;
                     const regionWidth = 0.8;
                     const unitSpacing = regionWidth / Math.max(unitsInRegion.length, 1);
                     const xPos = regionStart + 0.1 + (unitInRegionIndex * unitSpacing);
 
+<<<<<<< HEAD
                     const dataPoint = {
+=======
+                    transformedData.push({
+>>>>>>> 48e6ff0 (resolve cors iisue)
                       unit,
                       region,
                       competency: section.section_name,
@@ -197,16 +257,21 @@ export function BubbleMatrixPlot({ selectedUnits }) {
                       nurses: Math.floor(scores.unit_section_score_average * 10),
                       color: COMPETENCY_COLORS[section.section_name],
                       opacity: 0.2 + (scores.unit_section_score_percentile / 100) * 0.8
+<<<<<<< HEAD
                     };
                     
                     console.log("[Debug] Created data point:", dataPoint);
                     transformedData.push(dataPoint);
+=======
+                    });
+>>>>>>> 48e6ff0 (resolve cors iisue)
                   }
                 });
               }
             });
           });
 
+<<<<<<< HEAD
           console.log("[Debug] Final transformed data:", transformedData);
           setData(transformedData);
         }
@@ -214,14 +279,26 @@ export function BubbleMatrixPlot({ selectedUnits }) {
         console.error('[Debug] Error in data fetching:', error);
         setError(error.message || 'Failed to fetch data');
         setData([]);
+=======
+          console.log("[Debug] Transformed data:", transformedData);
+          setData(transformedData);
+        }
+      } catch (error) {
+        console.error('[Debug] Error fetching competency data:', error);
+        setError('Failed to fetch competency data');
+>>>>>>> 48e6ff0 (resolve cors iisue)
       } finally {
         setIsLoading(false);
       }
     };
 
+<<<<<<< HEAD
     if (regions.length > 0 && Object.keys(unitsByRegion).length > 0) {
     fetchData();
     }
+=======
+    fetchData();
+>>>>>>> 48e6ff0 (resolve cors iisue)
   }, [selectedUnits, regions, unitsByRegion]);
 
   const CustomTooltip = ({ active, payload }) => {

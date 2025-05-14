@@ -15,6 +15,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { CustomTooltip } from "./CustomTooltip"
 import { toast } from "react-hot-toast"
+<<<<<<< HEAD
+=======
+import axios from 'axios'
+
+>>>>>>> 48e6ff0 (resolve cors iisue)
 const BASE_URL = import.meta.env.VITE_API_URL;
 if (!BASE_URL) {
   console.error('VITE_API_URL environment variable is not set');
@@ -43,6 +48,7 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
 
       setIsLoading(true)
       try {
+<<<<<<< HEAD
         const token = localStorage.getItem("token")
         if (!apiBaseUrl) return;
         const response = await fetch(`${apiBaseUrl}reportanalytics/getRadarChartMainCompetency`, {
@@ -65,6 +71,25 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
           // Extract competency names from API data
           if (data.data && data.data.section_detail) {
             const competencies = Object.values(data.data.section_detail).map(section => section.section_name)
+=======
+        console.log('Fetching radar data for units:', selectedUnits);
+        const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
+          unit: selectedUnits
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+          }
+        });
+
+        console.log('Radar data response:', response.data);
+        
+        if (response.data.status === "success") {
+          setApiData(response.data.data)
+          
+          // Extract competency names from API data
+          if (response.data.data && response.data.data.section_detail) {
+            const competencies = Object.values(response.data.data.section_detail).map(section => section.section_name)
+>>>>>>> 48e6ff0 (resolve cors iisue)
             setSelectedCompetencies(competencies)
           }
         } else {
@@ -79,13 +104,18 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
     }
 
     fetchRadarData()
+<<<<<<< HEAD
   }, [selectedUnits, apiBaseUrl])
+=======
+  }, [selectedUnits])
+>>>>>>> 48e6ff0 (resolve cors iisue)
 
   // Fetch subcompetency data
   useEffect(() => {
     const fetchSubCompetencyData = async () => {
       setIsLoading(true)
       try {
+<<<<<<< HEAD
         const token = localStorage.getItem("token")
         if (!apiBaseUrl) return;
         const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCompetency`, {
@@ -102,6 +132,19 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
         const data = await response.json();
         if (data.status === "success") {
           setSubCompetencyData(data.data)
+=======
+        console.log('Fetching subcompetency data');
+        const response = await axios.post('/api/reportanalytics/getSubCompetency', {}, {
+          headers: {
+            "Content-Type": "application/json",
+          }
+        });
+
+        console.log('Subcompetency data response:', response.data);
+        
+        if (response.data.status === "success") {
+          setSubCompetencyData(response.data.data)
+>>>>>>> 48e6ff0 (resolve cors iisue)
         } else {
           toast.error("Failed to fetch subcompetency data")
         }
@@ -114,7 +157,11 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
     }
 
     fetchSubCompetencyData()
+<<<<<<< HEAD
   }, [apiBaseUrl])
+=======
+  }, [])
+>>>>>>> 48e6ff0 (resolve cors iisue)
 
   // Fetch sub-competency scores when a main competency is selected
   useEffect(() => {
@@ -123,9 +170,12 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
 
       setIsLoading(true);
       try {
+<<<<<<< HEAD
         const token = localStorage.getItem("token");
         if (!apiBaseUrl) return;
 
+=======
+>>>>>>> 48e6ff0 (resolve cors iisue)
         // Find the section ID for the selected main competency
         const sectionId = Object.entries(apiData?.section_detail || {}).find(
           ([_, section]) => section.section_name === selectedMainCompetency
@@ -136,6 +186,7 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
           return;
         }
 
+<<<<<<< HEAD
         const response = await fetch(`${apiBaseUrl}reportanalytics/getSubCometencyUnitReport`, {
           method: "POST",
           headers: {
@@ -153,6 +204,22 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
         const data = await response.json();
         if (data.status === "success") {
           setSubCompetencyScores(data.data);
+=======
+        console.log('Fetching sub-competency scores for section:', sectionId);
+        const response = await axios.post('/api/reportanalytics/getSubCometencyUnitReport', {
+          unit: selectedUnits,
+          section_id: [parseInt(sectionId)]
+        }, {
+          headers: {
+            "Content-Type": "application/json",
+          }
+        });
+
+        console.log('Sub-competency scores response:', response.data);
+        
+        if (response.data.status === "success") {
+          setSubCompetencyScores(response.data.data);
+>>>>>>> 48e6ff0 (resolve cors iisue)
         } else {
           toast.error("Failed to fetch sub-competency scores");
         }
@@ -165,7 +232,11 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
     };
 
     fetchSubCompetencyScores();
+<<<<<<< HEAD
   }, [selectedMainCompetency, selectedUnits, apiData, apiBaseUrl]);
+=======
+  }, [selectedMainCompetency, selectedUnits, apiData]);
+>>>>>>> 48e6ff0 (resolve cors iisue)
 
   const generateData = (apiData, selectedUnits) => {
     if (!apiData || !apiData.section_detail || !apiData.unit_details) return []

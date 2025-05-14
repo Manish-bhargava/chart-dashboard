@@ -1,11 +1,23 @@
 "use client"
 const BASE_URL = import.meta.env.VITE_API_URL;
+<<<<<<< HEAD
 if (!BASE_URL) {
   console.error('VITE_API_URL environment variable is not set');
 }
 
 // Ensure BASE_URL ends with a slash
 const apiBaseUrl = BASE_URL?.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+=======
+
+// Ensure BASE_URL is properly formatted
+const apiBaseUrl = import.meta.env.VITE_API_URL;
+console.log(apiBaseUrl);
+if (!apiBaseUrl) {
+  console.error('VITE_API_URL environment variable is not set');
+}
+
+import axios from 'axios';
+>>>>>>> 48e6ff0 (resolve cors iisue)
 
 import React, { useState, useEffect, useMemo } from "react"
 import {
@@ -109,6 +121,7 @@ export default function Dashboard() {
       try {
         setIsLoading(true)
         setError(null)
+<<<<<<< HEAD
         
         const token = localStorage.getItem("token")
         const response = await fetch(`${apiBaseUrl}reportanalytics/getUnitList`, {
@@ -169,6 +182,92 @@ export default function Dashboard() {
         setError("Failed to load units data")
       } finally {
         setIsLoading(false)
+=======
+      
+        console.log('Attempting to fetch data from:', `${BASE_URL}/reportanalytics/getUnitList`);
+        
+        const requestOptions = {
+          method: "post",
+          url: '/api/reportanalytics/getUnitList',
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          data: {}
+        };
+        
+        console.log('Request options:', requestOptions);
+
+        try {
+          // Try using axios with proxy
+          const response = await axios(requestOptions);
+          console.log("API Response:", response);
+
+          const data = response.data;
+          console.log("API Data:", data);
+
+          if (data.status === "success" && data.units) {
+            const rawUnitsData = data.units;
+            console.log("Raw Units Data:", rawUnitsData);
+
+            // Format regions: [{ value: 'Region Name', label: 'Region Name' }, ...]
+            const regionsOptions = Object.keys(rawUnitsData).map(regionName => ({
+              value: regionName,
+              label: regionName
+            }));
+            console.log("Formatted Regions Options:", regionsOptions);
+            setRegions(regionsOptions);
+
+            // Format units within each region
+            const formattedUnitsByRegion = {};
+            Object.entries(rawUnitsData).forEach(([regionName, units]) => {
+              formattedUnitsByRegion[regionName] = units.map(unitName => ({
+                value: unitName,
+                label: unitName
+              }));
+            });
+            console.log("Formatted Units By Region:", formattedUnitsByRegion);
+            setUnitsByRegion(formattedUnitsByRegion);
+
+            // Select the first region and its units by default
+            if (regionsOptions.length > 0) {
+              const firstRegionValue = regionsOptions[0].value;
+              setSelectedRegions([firstRegionValue]);
+
+              // Get units for the first region
+              const firstRegionUnits = formattedUnitsByRegion[firstRegionValue] || [];
+              setSelectedUnits(firstRegionUnits.map(unit => unit.value));
+            }
+          } else {
+            throw new Error("Invalid data format received");
+          }
+        } catch (error) {
+          console.error("Error fetching units:", error);
+          if (error.response) {
+            // The request was made and the server responded with a status code
+            // that falls out of the range of 2xx
+            console.error("Error response:", {
+              data: error.response.data,
+              status: error.response.status,
+              headers: error.response.headers
+            });
+          } else if (error.request) {
+            // The request was made but no response was received
+            console.error("Error request:", error.request);
+          } else {
+            // Something happened in setting up the request that triggered an Error
+            console.error("Error message:", error.message);
+          }
+          setError("Failed to load units data: " + (error.response?.data?.message || error.message));
+        } finally {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching units:", error);
+        setError("Failed to load units data");
+      } finally {
+        setIsLoading(false);
+>>>>>>> 48e6ff0 (resolve cors iisue)
       }
     }
 
