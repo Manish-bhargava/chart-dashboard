@@ -92,6 +92,8 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState("radar")
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
+  const [isUnitDropdownOpen, setIsUnitDropdownOpen] = useState(false)
 
   // New states for BarChartView
   const [selectedCompetencies, setSelectedCompetencies] = useState([])
@@ -102,6 +104,26 @@ export default function Dashboard() {
   const [displayMode, setDisplayMode] = useState("chart")
   const [isZoomed, setIsZoomed] = useState(false)
   const [apiData, setApiData] = useState(null)
+
+  // Click away handler
+  useEffect(() => {
+    function handleClickOutside(event) {
+      const regionSelect = document.getElementById('region-select-container');
+      const unitSelect = document.getElementById('unit-select-container');
+
+      if (regionSelect && !regionSelect.contains(event.target)) {
+        setIsRegionDropdownOpen(false);
+      }
+      if (unitSelect && !unitSelect.contains(event.target)) {
+        setIsUnitDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch regions and units data
   useEffect(() => {
@@ -150,15 +172,9 @@ export default function Dashboard() {
           console.log("Formatted Units By Region:", formattedUnitsByRegion);
           setUnitsByRegion(formattedUnitsByRegion);
 
-          // Select the first region and its units by default
-          if (regionsOptions.length > 0) {
-            const firstRegionValue = regionsOptions[0].value;
-            setSelectedRegions([firstRegionValue]);
-
-            // Get units for the first region
-            const firstRegionUnits = formattedUnitsByRegion[firstRegionValue] || [];
-            setSelectedUnits(firstRegionUnits.map(unit => unit.value));
-          }
+          // Remove auto-selection of first region and its units
+          setSelectedRegions([]);
+          setSelectedUnits([]);
         } else {
           throw new Error("Invalid data format received");
         }
@@ -355,7 +371,7 @@ export default function Dashboard() {
 
             {/* Common Filters - Region, Unit, and Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2" id="region-select-container">
                 <Label htmlFor="region-select" className="text-indigo-600">Region</Label>
                 <SimpleMultiSelect
                   options={regions}
@@ -364,9 +380,11 @@ export default function Dashboard() {
                   placeholder="Select Regions"
                   showCheckAll={true}
                   className="border-indigo-200 focus:border-indigo-500"
+                  isOpen={isRegionDropdownOpen}
+                  onOpenChange={setIsRegionDropdownOpen}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" id="unit-select-container">
                 <Label htmlFor="unit-select" className="text-indigo-600">Unit</Label>
                 <SimpleMultiSelect
                   options={availableUnits}
@@ -375,6 +393,8 @@ export default function Dashboard() {
                   placeholder="Select Units"
                   showCheckAll={true}
                   className="border-indigo-200 focus:border-indigo-500"
+                  isOpen={isUnitDropdownOpen}
+                  onOpenChange={setIsUnitDropdownOpen}
                 />
               </div>
             </div>

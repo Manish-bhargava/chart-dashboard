@@ -141,16 +141,19 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
         }
 
         console.log('Fetching sub-competency scores for section:', sectionId);
+        const requestBody = {
+          unit: selectedUnits,
+          section_id: [parseInt(sectionId)],
+          report_type: "chart"
+        };
+        console.log('Request body for sub-competency scores:', requestBody);
         const response = await fetch('/api/reportanalytics/getSubCometencyUnitReport', {
           method: 'POST',
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json"
           },
-          body: JSON.stringify({
-            unit: selectedUnits,
-            section_id: [parseInt(sectionId)]
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -182,7 +185,7 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
     if (viewMode === "competency") {
       // Get competencies from API data
       const competencies = Object.values(apiData.section_detail).map(section => section.section_name)
-      return competencies.map(comp => {
+      const dataPoints = competencies.map(comp => {
         const dataPoint = {
           subject: comp,
         }
@@ -193,13 +196,16 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
               ([_, section]) => section.section_name === comp
             )?.[0]
             if (sectionId && unitData[sectionId]) {
-              const originalValue = unitData[sectionId].unit_section_score_average
-              dataPoint[unit] = originalValue
+              // Use exact value from API without multiplication
+              dataPoint[unit] = unitData[sectionId].unit_section_score_average
+              console.log(`Raw data point for ${unit}, ${comp}:`, dataPoint[unit]);
             }
           }
         })
         return dataPoint
       })
+      console.log('Raw data points:', dataPoints);
+      return dataPoints;
     } else {
       if (!selectedMainCompetency || !subCompetencyData || !subCompetencyScores) return []
       
@@ -237,7 +243,7 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
           const unitData = subCompetencyScores[unit];
           if (!unitData || !unitData[sectionId]) return;
 
-          // Get the topic score
+          // Use exact value from API without multiplication
           const topicScore = unitData[sectionId].topic_detail[topicId]?.unit_topic_score_average || 0;
           dataPoint[unit] = topicScore;
         })
@@ -415,7 +421,7 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
   }, [selectedRegions, unitsByRegion, allUnits]);
 
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader>
         <CardTitle>Radar Chart View</CardTitle>
         <div className="flex flex-wrap gap-4 items-center">
@@ -481,7 +487,11 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="subject" />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                  <PolarRadiusAxis 
+                    angle={30} 
+                    domain={[0, 10]} 
+                    tickCount={6}
+                  />
                   {selectedUnits.map((unit, index) => (
                     <Radar
                       key={unit}
@@ -494,7 +504,23 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
                     />
                   ))}
                   <Legend />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-2 border border-gray-200 shadow-md rounded-md">
+                            <p className="font-medium">{`${label}`}</p>
+                            {payload.map((entry, index) => (
+                              <p key={`item-${index}`} style={{ color: entry.color }}>
+                                {`${entry.name}: ${entry.value}`}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
                 </RadarChart>
               </ResponsiveContainer>
             ) : (
