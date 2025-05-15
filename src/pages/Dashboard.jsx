@@ -1,5 +1,4 @@
 "use client"
-import axios from 'axios';
 import React, { useState, useEffect, useMemo } from "react"
 import {
   RadarChart,
@@ -113,17 +112,23 @@ export default function Dashboard() {
         
         console.log('Attempting to fetch data from:', '/api/reportanalytics/getUnitList');
         
-        const response = await axios.post('/api/reportanalytics/getUnitList', {}, {
+        const response = await fetch('/api/reportanalytics/getUnitList', {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json"
           }
         });
         
-        console.log('API Response:', response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('API Response:', data);
 
-        if (response.data.status === "success" && response.data.units) {
-          const rawUnitsData = response.data.units;
+        if (data.status === "success" && data.units) {
+          const rawUnitsData = data.units;
           console.log("Raw Units Data:", rawUnitsData);
 
           // Format regions: [{ value: 'Region Name', label: 'Region Name' }, ...]

@@ -4,9 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { Maximize2, Minimize2 } from "lucide-react";
-import axios from 'axios';
-// Assuming axios is installed, if not, use fetch
-// import axios from 'axios'; 
 
 // Helper function to determine cell background color based on percentile
 const getPercentileBackgroundColor = (value) => {
@@ -79,21 +76,29 @@ export function HeatmapView({ selectedUnits }) {
       try {
         console.log("[Debug] Fetching heatmap data for units:", selectedUnits);
         
-        const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
-          unit: selectedUnits
-        }, {
+        const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json"
-          }
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            unit: selectedUnits
+          })
         });
 
-        console.log("[Debug] Heatmap API Response:", response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        if (response.data?.status === "success" && response.data.data) {
-          if (!response.data.data.section_detail || !response.data.data.unit_details) {
+        const data = await response.json();
+        console.log("[Debug] Heatmap API Response:", data);
+
+        if (data?.status === "success" && data.data) {
+          if (!data.data.section_detail || !data.data.unit_details) {
             throw new Error("Invalid data structure received from API");
           }
-          setHeatMapData(response.data.data);
+          setHeatMapData(data.data);
         } else {
           throw new Error("Invalid response format from API");
         }

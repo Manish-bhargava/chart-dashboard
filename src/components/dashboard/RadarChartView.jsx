@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { CustomTooltip } from "./CustomTooltip"
 import { toast } from "react-hot-toast"
-import axios from 'axios'
 import { API_URL } from '../../config'
 
 const BASE_URL = import.meta.env.VITE_API_URL;
@@ -47,22 +46,30 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
       setIsLoading(true)
       try {
         console.log('Fetching radar data for units:', selectedUnits);
-        const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
-          unit: selectedUnits
-        }, {
+        const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
-          }
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            unit: selectedUnits
+          })
         });
 
-        console.log('Radar data response:', response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Radar data response:', data);
         
-        if (response.data.status === "success") {
-          setApiData(response.data.data)
+        if (data.status === "success") {
+          setApiData(data.data)
           
           // Extract competency names from API data
-          if (response.data.data && response.data.data.section_detail) {
-            const competencies = Object.values(response.data.data.section_detail).map(section => section.section_name)
+          if (data.data && data.data.section_detail) {
+            const competencies = Object.values(data.data.section_detail).map(section => section.section_name)
             setSelectedCompetencies(competencies)
           }
         } else {
@@ -85,16 +92,23 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
       setIsLoading(true)
       try {
         console.log('Fetching subcompetency data');
-        const response = await axios.post('/api/reportanalytics/getSubCompetency', {}, {
+        const response = await fetch('/api/reportanalytics/getSubCompetency', {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json"
           }
         });
 
-        console.log('Subcompetency data response:', response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Subcompetency data response:', data);
         
-        if (response.data.status === "success") {
-          setSubCompetencyData(response.data.data)
+        if (data.status === "success") {
+          setSubCompetencyData(data.data)
         } else {
           toast.error("Failed to fetch subcompetency data")
         }
@@ -127,19 +141,27 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
         }
 
         console.log('Fetching sub-competency scores for section:', sectionId);
-        const response = await axios.post('/api/reportanalytics/getSubCometencyUnitReport', {
-          unit: selectedUnits,
-          section_id: [parseInt(sectionId)]
-        }, {
+        const response = await fetch('/api/reportanalytics/getSubCometencyUnitReport', {
+          method: 'POST',
           headers: {
             "Content-Type": "application/json",
-          }
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            unit: selectedUnits,
+            section_id: [parseInt(sectionId)]
+          })
         });
 
-        console.log('Sub-competency scores response:', response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Sub-competency scores response:', data);
         
-        if (response.data.status === "success") {
-          setSubCompetencyScores(response.data.data);
+        if (data.status === "success") {
+          setSubCompetencyScores(data.data);
         } else {
           toast.error("Failed to fetch sub-competency scores");
         }

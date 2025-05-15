@@ -10,7 +10,6 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
-import axios from 'axios';
 
 // Define competency colors
 const COMPETENCY_COLORS = {
@@ -64,20 +63,24 @@ export function TalentDistributionMap({ selectedUnits }) {
 
       try {
         console.log("Fetching data for units:", selectedUnits);
-        const response = await axios.post(
-          'https://mhbodhi.medtalent.co/api/reportanalytics/getRadarChartMainCompetency',
-          { unit: selectedUnits },
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ unit: selectedUnits })
+        });
 
-        console.log("API Response:", response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        if (response.data?.status === "success" && response.data.data) {
-          const { section_detail, unit_details } = response.data.data;
+        const responseData = await response.json();
+        console.log("API Response:", responseData);
+
+        if (responseData?.status === "success" && responseData.data) {
+          const { section_detail, unit_details } = responseData.data;
           
           // Transform data for bubble chart
           const transformedData = [];

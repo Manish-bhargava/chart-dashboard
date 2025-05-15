@@ -10,7 +10,6 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
-import axios from 'axios';
 
 // Define competency colors with their specific colors as per requirements
 const COMPETENCY_COLORS = {
@@ -33,27 +32,41 @@ export function BubbleMatrixPlot({ selectedUnits }) {
     const fetchRegionsAndUnits = async () => {
       try {
         console.log("[Debug] Fetching regions...");
-        const regionsResponse = await axios.post('/api/reportanalytics/getRegionList', {}, {
+        const regionsResponse = await fetch('/api/reportanalytics/getRegionList', {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         });
 
-        console.log("[Debug] Regions response:", regionsResponse.data);
-        if (regionsResponse.data?.regions) {
-          setRegions(regionsResponse.data.regions);
+        if (!regionsResponse.ok) {
+          throw new Error(`HTTP error! status: ${regionsResponse.status}`);
+        }
+
+        const regionsData = await regionsResponse.json();
+        console.log("[Debug] Regions response:", regionsData);
+        if (regionsData?.regions) {
+          setRegions(regionsData.regions);
         }
 
         console.log("[Debug] Fetching unit list...");
-        const unitListResponse = await axios.post('/api/reportanalytics/getUnitList', {}, {
+        const unitListResponse = await fetch('/api/reportanalytics/getUnitList', {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         });
 
-        console.log("[Debug] Units response:", unitListResponse.data);
-        if (unitListResponse.data?.status === "success") {
-          setUnitsByRegion(unitListResponse.data.units);
+        if (!unitListResponse.ok) {
+          throw new Error(`HTTP error! status: ${unitListResponse.status}`);
+        }
+
+        const unitListData = await unitListResponse.json();
+        console.log("[Debug] Units response:", unitListData);
+        if (unitListData?.status === "success") {
+          setUnitsByRegion(unitListData.units);
         }
       } catch (error) {
         console.error('[Debug] Error fetching regions and units:', error);
@@ -88,18 +101,26 @@ export function BubbleMatrixPlot({ selectedUnits }) {
 
       try {
         console.log("[Debug] Fetching competency data for units:", selectedUnits);
-        const response = await axios.post('/api/reportanalytics/getRadarChartMainCompetency', {
-          unit: selectedUnits
-        }, {
+        const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            unit: selectedUnits
+          })
         });
 
-        console.log("[Debug] Competency data response:", response.data);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        if (response.data?.status === "success" && response.data.data) {
-          const { section_detail, unit_details } = response.data.data;
+        const responseData = await response.json();
+        console.log("[Debug] Competency data response:", responseData);
+
+        if (responseData?.status === "success" && responseData.data) {
+          const { section_detail, unit_details } = responseData.data;
           
           // Get competencies from section details
           const competencyList = Object.values(section_detail).map(section => section.section_name);
