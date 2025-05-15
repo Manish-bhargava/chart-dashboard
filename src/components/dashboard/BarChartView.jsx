@@ -18,17 +18,15 @@ import { CustomTooltip } from "./CustomTooltip"
 import { SimpleMultiSelect } from "./SimpleMultiSelect"
 import { Button } from "../ui/button"
 import { Maximize2, Minimize2 } from "lucide-react"
-import axios from "axios";
-
-const BASE_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from '../../config'
 
 export function BarChartView({ 
-  selectedRegions, 
-  selectedUnits, 
-  availableUnits, 
-  availableRegions, 
-  unitsByRegion,
-  onFilterChange,
+  selectedRegions = [], 
+  selectedUnits = [], 
+  availableUnits = [], 
+  availableRegions = [], 
+  unitsByRegion = {},
+  onFilterChange = () => {},
 }) {
   const [selectedCompetencies, setSelectedCompetencies] = useState([]) // Array of IDs
   const [availableCompetencies, setAvailableCompetencies] = useState([]) // Array of {value, label}
@@ -37,6 +35,7 @@ export function BarChartView({
   const [apiData, setApiData] = useState(null) 
   const [isLoading, setIsLoading] = useState(false)
   const [dataKeys, setDataKeys] = useState([])
+  const [selectedBar, setSelectedBar] = useState(null)
 
   // State for pending selections (before Apply)
   const [pendingSelectedCompetencies, setPendingSelectedCompetencies] = useState([]);
@@ -51,25 +50,31 @@ export function BarChartView({
     setHasPendingChanges(true);
   };
 
+  const handleBarClick = (data, index) => {
+    console.log("[Debug] Bar clicked:", { data, index });
+    setSelectedBar(data);
+  };
+
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
       setAvailableCompetencies([]);
       try {
-        const token = localStorage.getItem("token");
-        const response = await axios.post(
-          `${BASE_URL}reportanalytics/getMainCompetency`,
-          {},
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
+        const response = await fetch(`/api/reportanalytics/getMainCompetency`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
-        );
+        });
 
-        if (response.data && response.data.status === "success" && Array.isArray(response.data.data)) {
-          const allCompetencies = response.data.data.flatMap(quiz =>
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data && data.status === "success" && Array.isArray(data.data)) {
+          const allCompetencies = data.data.flatMap(quiz =>
             quiz.sections.map(section => ({
               value: section.quiz_section_id,
               label: section.section_name,
@@ -83,7 +88,7 @@ export function BarChartView({
           setPendingSelectedCompetencies([]);
           setSelectedCompetencies([]);
         } else {
-          console.error("[Debug] Failed to fetch competency data:", response.data);
+          console.error("[Debug] Failed to fetch competency data:", data);
           setAvailableCompetencies([]);
         }
       } catch (error) {
@@ -108,7 +113,6 @@ export function BarChartView({
       setApiData(null);
       setDataKeys([]);
       setIsLoading(true);
-      const url = `${BASE_URL}reportanalytics/getRadarChartMainCompetency`;
 
       const sectionIds = pendingSelectedCompetencies.length > 0 && typeof pendingSelectedCompetencies[0] === 'object'
         ? pendingSelectedCompetencies.map(c => c.value)
@@ -119,21 +123,28 @@ export function BarChartView({
         section_id: sectionIds.filter(id => id !== null && id !== undefined),
       };
 
-      const token = localStorage.getItem("token");
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      };
-
       try {
-        const response = await axios.post(url, payload, { headers });
-        if (response.data.status === "success" && response.data.data) {
+        const response = await fetch(`/api/reportanalytics/getRadarChartMainCompetency`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.status === "success" && data.data) {
           let transformedData = [];
           let keysForChart = new Set();
 
-          if (response.data.data.unit_details && response.data.data.section_detail) {
-            const sectionDetails = response.data.data.section_detail;
-            const unitDetails = response.data.data.unit_details;
+          if (data.data.unit_details && data.data.section_detail) {
+            const sectionDetails = data.data.section_detail;
+            const unitDetails = data.data.unit_details;
 
             transformedData = Object.entries(unitDetails).map(([unitName, sections]) => {
               const unitEntry = { unit: unitName };
@@ -180,20 +191,22 @@ export function BarChartView({
     };
 
     fetchChartData();
-  }, [BASE_URL, selectedUnits, pendingSelectedCompetencies]);
+  }, [API_URL, selectedUnits, pendingSelectedCompetencies, availableCompetencies]);
 
   const handleRegionChange = (newSelectedRegions) => {
-    setSelectedRegions(newSelectedRegions);
-    const selectedRegionUnits = newSelectedRegions.flatMap(region => unitsByRegion[region] || []);
+    const safeNewRegions = newSelectedRegions || [];
+    const safeUnitsByRegion = unitsByRegion || {};
+    const selectedRegionUnits = safeNewRegions.flatMap(region => safeUnitsByRegion[region] || []);
     setSelectedUnits(selectedRegionUnits);
-    onFilterChange({ regions: newSelectedRegions, units: selectedRegionUnits });
+    onFilterChange({ regions: safeNewRegions, units: selectedRegionUnits });
   };
 
   const handleUnitChange = (newSelectedUnits) => {
-    setSelectedUnits(newSelectedUnits);
+    const safeNewUnits = newSelectedUnits || [];
+    setSelectedUnits(safeNewUnits);
     const selectedUnitRegions = new Set(
-      units
-        .filter(unit => newSelectedUnits.includes(unit.value))
+      (availableUnits || [])
+        .filter(unit => safeNewUnits.includes(unit.value))
         .map(unit => unit.region)
     );
     const newRegions = Array.from(selectedUnitRegions);
@@ -201,16 +214,19 @@ export function BarChartView({
     if (JSON.stringify(newRegions.sort()) !== JSON.stringify(selectedRegions.sort())) {
       setSelectedRegions(newRegions);
     }
-    onFilterChange({ regions: newRegions, units: newSelectedUnits });
+    onFilterChange({ regions: newRegions, units: safeNewUnits });
   };
 
   useEffect(() => {
-    if (Object.keys(unitsByRegion).length > 0 && selectedRegions.length > 0) {
-      const unitsToSelect = selectedRegions.flatMap(region => unitsByRegion[region] || []);
+    const safeUnitsByRegion = unitsByRegion || {};
+    const safeSelectedRegions = selectedRegions || [];
+    
+    if (Object.keys(safeUnitsByRegion).length > 0 && safeSelectedRegions.length > 0) {
+      const unitsToSelect = safeSelectedRegions.flatMap(region => safeUnitsByRegion[region] || []);
       setSelectedUnits(unitsToSelect);
       // Also notify parent
       onFilterChange({
-        regions: selectedRegions,
+        regions: safeSelectedRegions,
         units: unitsToSelect
       });
     }
@@ -237,7 +253,7 @@ export function BarChartView({
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="unit" />
-          <YAxis />
+          <YAxis domain={[0, 100]} />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           {dataKeys.map((key, index) => (
@@ -246,6 +262,9 @@ export function BarChartView({
               dataKey={key}
               fill={barColors[index % barColors.length]}
               radius={[4, 4, 0, 0]}
+              onClick={handleBarClick}
+              style={{ cursor: 'pointer' }}
+              fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
             >
               <LabelList
                 dataKey={key}

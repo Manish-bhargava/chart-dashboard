@@ -12,10 +12,18 @@ export default defineConfig(({ command, mode }) => {
     target: 'https://mhbodhi.medtalent.co',
     changeOrigin: true,
     secure: false,
+    ws: true,
     rewrite: (path) => path.replace(/^\/api/, '/api'),
     configure: (proxy, options) => {
       proxy.on('error', (err, req, res) => {
         console.error('Proxy Error:', err);
+        if (res.writeHead && !res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+          });
+        }
+        const json = { error: err.message };
+        res.end(JSON.stringify(json));
       });
 
       proxy.on('proxyReq', (proxyReq, req, res) => {
@@ -28,15 +36,28 @@ export default defineConfig(({ command, mode }) => {
 
         // Set the origin to match the target
         proxyReq.setHeader('origin', 'https://mhbodhi.medtalent.co');
+        proxyReq.setHeader('referer', 'https://mhbodhi.medtalent.co');
         
         // Handle preflight
         if (req.method === 'OPTIONS') {
-          proxyReq.setHeader('access-control-request-method', 'POST');
-          proxyReq.setHeader('access-control-request-headers', 'content-type,accept');
+          if (!res.headersSent) {
+            res.statusCode = 200;
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+            res.setHeader('Access-Control-Max-Age', '86400');
+            res.end();
+          }
+          return;
         }
       });
 
       proxy.on('proxyRes', (proxyRes, req, res) => {
+        // Add CORS headers to the response
+        proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+        proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+        proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept';
+
         // Log the response
         console.log('Response:', {
           statusCode: proxyRes.statusCode,
@@ -47,6 +68,7 @@ export default defineConfig(({ command, mode }) => {
   };
 
   return {
+    base: '/react/chart/',
     plugins: [react()],
     resolve: {
       alias: {
@@ -55,16 +77,31 @@ export default defineConfig(({ command, mode }) => {
     },
     server: {
       port: 4174,
+      cors: true,
       proxy: {
-        '/api': proxyConfig
+        '/api': proxyConfig,
+        '^/reportanalytics/.*': {
+          target: 'https://mhbodhi.medtalent.co/api',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        }
+        
       },
     },
     preview: {
       port: 4175,
       host: true,
       strictPort: true,
+      cors: true,
       proxy: {
-        '/api': proxyConfig
+        '/api': proxyConfig,
+        '^/reportanalytics/.*': {
+          target: 'https://mhbodhi.medtalent.co/api',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path
+        }
       },
     },
     build: {
