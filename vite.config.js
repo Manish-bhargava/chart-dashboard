@@ -11,7 +11,7 @@ export default defineConfig(({ command, mode }) => {
   const proxyConfig = {
     target: 'https://mhbodhi.medtalent.co',
     changeOrigin: true,
-    secure: false,
+    secure: true,
     ws: true,
     rewrite: (path) => path.replace(/^\/api/, '/api'),
     configure: (proxy, options) => {
@@ -86,7 +86,6 @@ export default defineConfig(({ command, mode }) => {
           secure: false,
           rewrite: (path) => path
         }
-        
       },
     },
     preview: {

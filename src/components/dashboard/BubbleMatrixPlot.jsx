@@ -176,10 +176,10 @@ export function BubbleMatrixPlot({ selectedUnits }) {
                       competency: section.section_name,
                       x: xPos,
                       y: competencyList.indexOf(section.section_name),
-                      z: scores.unit_section_score_average * 100,
+                      z: getBubbleSize(scores.users_count),
                       score: scores.unit_section_score_average,
                       percentile: scores.unit_section_score_percentile,
-                      nurses: Math.floor(scores.unit_section_score_average * 10),
+                      user_count: scores.users_count,
                       color: COMPETENCY_COLORS[section.section_name],
                       opacity: 0.2 + (scores.unit_section_score_percentile / 100) * 0.8
                     };
@@ -207,6 +207,16 @@ export function BubbleMatrixPlot({ selectedUnits }) {
     fetchData();
   }, [selectedUnits, regions, unitsByRegion]);
 
+  const getBubbleSize = (users) => {
+    // Base size for smallest bubbles
+    const baseSize = 500;
+    // Scaling factor to amplify differences
+    const scaleFactor = 100;
+    
+    // Calculate size based on user count
+    return baseSize + (users * scaleFactor);
+  };
+
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -217,7 +227,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
           <p>Competency: {data.competency}</p>
           <p>Score: {data.score.toFixed(2)}</p>
           <p>Percentile: {data.percentile.toFixed(2)}%</p>
-          <p>Nurses: {data.nurses}</p>
+          <p>Users: {data.user_count}</p>
         </div>
       );
     }
@@ -235,7 +245,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
         ))}
       </div>
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-semibold">Bubble Size: Number of Nurses</p>
+        <p className="text-sm font-semibold">Bubble Size: Number of Users</p>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-gray-400"></div>
           <span className="text-xs">Small Unit</span>
@@ -276,58 +286,46 @@ export function BubbleMatrixPlot({ selectedUnits }) {
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Nurse Psychometric Assessment Dashboard</CardTitle>
-        <CardDescription>Performance by Region and Hospital Unit</CardDescription>
+        <CardTitle>Competency Matrix Plot</CardTitle>
+        <CardDescription>Distribution of competencies across regions and units</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[600px]">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
-              margin={{ top: 20, right: 20, bottom: 70, left: 150 }}
+              margin={{
+                top: 20,
+                right: 20,
+                bottom: 20,
+                left: 20,
+              }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid />
               <XAxis
                 type="number"
                 dataKey="x"
-                name="Region"
-                domain={[-0.1, regions.length - 0.1]}
-                tickFormatter={(value) => regions[Math.floor(value)] || ''}
-                ticks={regions.map((_, i) => i)}
-                label={{ value: 'Hospital Units by Region', position: 'bottom', offset: 20 }}
-              />
-              <XAxis
-                type="number"
-                dataKey="x"
-                axisLine={false}
-                tickLine={false}
-                tick={(props) => {
-                  const { x, y, payload } = props;
-                  const unit = data.find(d => Math.abs(d.x - payload.value) < 0.01)?.unit;
-                  if (unit) {
-                    return (
-                      <text x={x} y={y + 10} fill="#666" textAnchor="middle" fontSize={10}>
-                        {unit}
-                      </text>
-                    );
-                  }
-                  return null;
+                domain={[0, regions.length]}
+                tickFormatter={(value) => {
+                  const region = regions[Math.floor(value)];
+                  return region || '';
                 }}
+                interval={0}
               />
               <YAxis
                 type="number"
                 dataKey="y"
-                name="Competency"
-                domain={[-0.5, competencies.length - 0.5]}
-                tickFormatter={(value) => competencies[value] || ''}
-                label={{ value: 'Competency Areas', angle: -90, position: 'insideLeft', offset: -20 }}
+                domain={[0, competencies.length - 1]}
+                tickFormatter={(value) => {
+                  return competencies[value] || '';
+                }}
+                interval={0}
               />
               <ZAxis
                 type="number"
                 dataKey="z"
-                range={[400, 2000]}
-                name="nurses"
+                range={[200, 2000]}
               />
               <Tooltip content={<CustomTooltip />} />
               {Object.entries(COMPETENCY_COLORS).map(([competency, color]) => (

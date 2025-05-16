@@ -1,201 +1,447 @@
 import React, { useState, useEffect } from 'react';
+import { Card } from "../ui/card";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
+import { SimpleMultiSelect } from './SimpleMultiSelect';
 import {
-  ScatterChart,
-  Scatter,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
-  ZAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
-// Define competency colors
-const COMPETENCY_COLORS = {
-  'Leadership': '#60a5fa', // Blue
-  'Situation Management': '#f472b6', // Pink
-  'Quality in Healthcare Delivery': '#fcd34d', // Yellow
-  'Relationship Building': '#4ade80', // Green
-};
-
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-white p-3 shadow-lg rounded-lg border">
-        <p className="font-semibold">{data.unit}</p>
-        <p>Competency: {data.competency}</p>
-        <p>Score: {data.score.toFixed(2)}</p>
-        <p>Percentile: {data.percentile.toFixed(2)}%</p>
-        <p>Nurses: {data.nurses}</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-const CustomLegend = () => (
-  <div className="flex flex-wrap gap-4 justify-center mt-4 p-4 bg-white rounded-lg shadow">
-    {Object.entries(COMPETENCY_COLORS).map(([name, color]) => (
-      <div key={name} className="flex items-center gap-2">
-        <div className="w-4 h-4 rounded" style={{ backgroundColor: color }}></div>
-        <span className="text-sm">{name}</span>
-      </div>
-    ))}
-  </div>
-);
-
-export function TalentDistributionMap({ selectedUnits }) {
-  const [data, setData] = useState([]);
+export const TalentDistributionMap = ({
+  selectedUnits = [],
+  availableUnits = [],
+  onFilterChange
+}) => {
+  const [distributionData, setDistributionData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [unitStats, setUnitStats] = useState({});
+  const [overallStats, setOverallStats] = useState({ mean: 0, stdDev: 0 });
+  const [activeTab, setActiveTab] = useState("unit");
+  const [competencies, setCompetencies] = useState([]);
+  const [selectedCompetency, setSelectedCompetency] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!selectedUnits?.length) {
-        setData([]);
-        return;
+  // Function to calculate normal distribution
+  const calculateNormalDistribution = (x, mean, stdDev) => {
+    const coefficient = 1 / (stdDev * Math.sqrt(2 * Math.PI));
+    const exponent = -Math.pow(x - mean, 2) / (2 * Math.pow(stdDev, 2));
+    return coefficient * Math.exp(exponent);
+  };
+
+  // Generate distribution data points
+  const generateDistributionData = (mean, stdDev) => {
+    const data = [];
+    for (let score = 0; score <= 10; score += 0.1) {
+      const density = calculateNormalDistribution(score, mean, stdDev);
+      const scaledDensity = density * 50;
+      data.push({
+        score: score,
+        density: scaledDensity
+      });
+    }
+    return data;
+  };
+
+  // Helper function for precise calculation without rounding
+  const calculatePreciseMean = (scores) => {
+    if (scores.length === 0) return 0;
+    const sum = scores.reduce((acc, curr) => acc + parseFloat(curr), 0);
+    return sum / scores.length;
+  };
+
+  // Helper function to calculate sample standard deviation
+  const calculateStandardDeviation = (scores, mean) => {
+    if (scores.length <= 1) return 0;
+    
+    // Calculate sum of squared differences from mean
+    const sumSquaredDiff = scores.reduce((acc, curr) => {
+      const diff = parseFloat(curr) - mean;
+      return acc + (diff * diff);
+    }, 0);
+    
+    // Use (n-1) for sample standard deviation
+    return Math.sqrt(sumSquaredDiff / (scores.length - 1));
+  };
+
+  // Function to fetch competencies
+  const fetchCompetencies = async () => {
+    try {
+      const response = await fetch('/api/reportanalytics/getMainCompetency', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({}) // Empty body since no parameters are required
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      setIsLoading(true);
-      setError(null);
+      const data = await response.json();
+      
+      if (data.status === 'success' && data.data) {
+        // Transform the data to get unique competencies
+        const allCompetencies = data.data.flatMap(quiz => 
+          quiz.sections.map(section => ({
+            id: section.section_id,
+            name: section.section_name,
+            quiz_section_id: section.quiz_section_id
+          }))
+        );
+        setCompetencies(allCompetencies);
+      } else {
+        console.error('Invalid competency data format:', data);
+      }
+    } catch (error) {
+      console.error('Error fetching competencies:', error);
+      setCompetencies([]);
+    }
+  };
 
-      try {
-        console.log("Fetching data for units:", selectedUnits);
-        const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ unit: selectedUnits })
+  // Fetch competencies on mount
+  useEffect(() => {
+    fetchCompetencies();
+  }, []);
+
+  // Modified fetch function to handle both unit and competency views
+  const fetchDistributionData = async () => {
+    if (!selectedUnits || selectedUnits.length === 0) {
+      setDistributionData([]);
+      setUnitStats({});
+      setOverallStats({ mean: 0, stdDev: 0 });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/reportanalytics/getRadarChartMainCompetency', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          unit: selectedUnits
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'success' && data.data && data.data.unit_details) {
+        const stats = {};
+        let totalScores = [];
+
+        // Calculate individual unit stats
+        Object.entries(data.data.unit_details).forEach(([unit, sections]) => {
+          let scores;
+          if (activeTab === "competency" && selectedCompetency) {
+            // For competency view, only use scores for selected competency
+            const competencyScore = Object.entries(sections)
+              .find(([id]) => id === selectedCompetency);
+            scores = competencyScore ? [competencyScore[1].unit_section_score_average] : [];
+          } else {
+            // For unit view, use all scores
+            scores = Object.values(sections).map(section => 
+              parseFloat(section.unit_section_score_average)
+            );
+          }
+          
+          if (scores.length > 0) {
+            const mean = calculatePreciseMean(scores);
+            const stdDev = calculateStandardDeviation(scores, mean);
+            stats[unit] = { mean, stdDev };
+            totalScores = totalScores.concat(scores);
+          }
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (totalScores.length > 0) {
+          const overallMean = calculatePreciseMean(totalScores);
+          const overallStdDev = calculateStandardDeviation(totalScores, overallMean);
+          setOverallStats({ mean: overallMean, stdDev: overallStdDev });
+          setUnitStats(stats);
+          const distributionCurve = generateDistributionData(overallMean, overallStdDev);
+          setDistributionData(distributionCurve);
         }
-
-        const responseData = await response.json();
-        console.log("API Response:", responseData);
-
-        if (responseData?.status === "success" && responseData.data) {
-          const { section_detail, unit_details } = responseData.data;
-          
-          // Transform data for bubble chart
-          const transformedData = [];
-          Object.entries(unit_details).forEach(([unit, competencies], unitIndex) => {
-            Object.entries(competencies).forEach(([sectionId, scores]) => {
-              const section = section_detail[sectionId];
-              if (section) {
-                // Mock number of nurses (you should replace this with actual data)
-                const nursesCount = Math.floor(Math.random() * 50) + 10;
-
-                transformedData.push({
-                  unit,
-                  competency: section.section_name,
-                  x: unitIndex,
-                  y: Object.keys(section_detail).indexOf(sectionId),
-                  z: nursesCount,
-                  score: scores.unit_section_score_average,
-                  percentile: scores.unit_section_score_percentile,
-                  nurses: nursesCount,
-                  color: COMPETENCY_COLORS[section.section_name]
-                });
-              }
-            });
-          });
-
-          console.log("Transformed data:", transformedData);
-          setData(transformedData);
-        }
-      } catch (error) {
-        console.error('Error fetching bubble matrix data:', error);
-        setError('Failed to fetch data');
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching distribution data:', error);
+      setDistributionData([]);
+      setUnitStats({});
+      setOverallStats({ mean: 0, stdDev: 0 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchData();
-  }, [selectedUnits]);
+  useEffect(() => {
+    if (selectedUnits && selectedUnits.length > 0) {
+      fetchDistributionData();
+    }
+  }, [selectedUnits, activeTab, selectedCompetency]);
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const getUnitColor = (index) => {
+    const colors = ['#ff7300', '#8884d8', '#82ca9d', '#ffc658', '#ff5252'];
+    return colors[index % colors.length];
+  };
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center h-96">
-          <div className="text-red-500">{error}</div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const getUnitsAboveBelowAverage = () => {
+    const aboveAverage = [];
+    const belowAverage = [];
+    
+    Object.entries(unitStats).forEach(([unit, stats]) => {
+      if (stats.mean > overallStats.mean) {
+        aboveAverage.push(unit);
+      } else if (stats.mean < overallStats.mean) {
+        belowAverage.push(unit);
+      }
+    });
+
+    return { aboveAverage, belowAverage };
+  };
+
+  const { aboveAverage, belowAverage } = getUnitsAboveBelowAverage();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Nurse Psychometric Assessment Dashboard</CardTitle>
-        <CardDescription>Performance by Region and Hospital Unit</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="h-[600px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart
-              margin={{ top: 20, right: 20, bottom: 70, left: 150 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                type="number"
-                dataKey="x"
-                name="Unit"
-                domain={[0, data.length > 0 ? Math.max(...data.map(d => d.x)) : 0]}
-                tickFormatter={(value) => {
-                  const unit = data.find(d => d.x === value)?.unit || '';
-                  return unit;
-                }}
-                label={{ value: 'Hospital Units', position: 'bottom', offset: 20 }}
-              />
-              <YAxis
-                type="number"
-                dataKey="y"
-                name="Competency"
-                domain={[-0.5, 3.5]}
-                tickFormatter={(value) => {
-                  const competencies = ['Leadership', 'Situation Management', 'Quality in Healthcare Delivery', 'Relationship Building'];
-                  return competencies[value] || '';
-                }}
-                label={{ value: 'Competency Areas', angle: -90, position: 'insideLeft', offset: -20 }}
-              />
-              <ZAxis
-                type="number"
-                dataKey="z"
-                range={[400, 2000]}
-                name="nurses"
-              />
-              <Tooltip content={<CustomTooltip />} />
-              {Object.entries(COMPETENCY_COLORS).map(([competency, color]) => (
-                <Scatter
-                  key={competency}
-                  name={competency}
-                  data={data.filter(item => item.competency === competency)}
-                  fill={color}
-                  fillOpacity={(d) => 0.3 + (d.percentile / 100) * 0.7}
-                />
-              ))}
-            </ScatterChart>
-          </ResponsiveContainer>
+    <Card className="p-4">
+      <div className="space-y-4">
+        <div className="flex justify-between items-start">
+          <h2 className="text-xl font-bold">Talent Distribution Map</h2>
+          <div className="text-right">
+            <p className="font-bold mb-2">Mean: {overallStats.mean} | Std Dev: {overallStats.stdDev}</p>
+            <div className="text-sm space-y-2">
+              <div>
+                <p className="font-semibold text-green-600">Above Average Units:</p>
+                <p>{aboveAverage.join(', ') || 'None'}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-red-600">Below Average Units:</p>
+                <p>{belowAverage.join(', ') || 'None'}</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <CustomLegend />
-      </CardContent>
+
+        <Tabs defaultValue="unit" className="w-full" onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="unit">Unit-wise</TabsTrigger>
+            <TabsTrigger value="competency">Competency-wise</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="unit" className="space-y-4">
+            <div className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={distributionData}
+                  margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="score"
+                    type="number"
+                    domain={[0, 10]}
+                    ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                  />
+                  <YAxis 
+                    dataKey="density"
+                    type="number"
+                    domain={[0, 'auto']}
+                    label={{ 
+                      value: 'Distribution', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle' },
+                      offset: -35
+                    }}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      return ['', ''];
+                    }}
+                    labelFormatter={(label) => {
+                      const matchingUnit = Object.entries(unitStats).find(([unit, stats]) => 
+                        Math.abs(stats.mean - label) < 0.1
+                      );
+                      if (matchingUnit) {
+                        return `${matchingUnit[0]}: ${matchingUnit[1].mean}`;
+                      }
+                      return '';
+                    }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom"
+                    height={36}
+                    content={({ payload }) => (
+                      <div className="text-center text-sm mt-4">
+                        X-axis represents Score (0-10)
+                      </div>
+                    )}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="density"
+                    stroke="#ff7300"
+                    dot={false}
+                    name="Distribution"
+                    strokeWidth={2}
+                  />
+
+                  {/* Unit mean markers */}
+                  {Object.entries(unitStats).map(([unit, stats], index) => (
+                    <ReferenceLine
+                      key={`mean-${unit}`}
+                      x={stats.mean}
+                      stroke={getUnitColor(index)}
+                      strokeWidth={2}
+                      label={{
+                        value: `${unit}: ${stats.mean}`,
+                        position: 'top',
+                        fill: getUnitColor(index)
+                      }}
+                    />
+                  ))}
+
+                  {/* Overall mean reference line */}
+                  <ReferenceLine
+                    x={overallStats.mean}
+                    stroke="#000"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: `Overall Mean: ${overallStats.mean}`,
+                      position: 'top',
+                      fill: '#000'
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="competency" className="space-y-4">
+            <div className="w-[500px] mx-auto">
+              <Label>Select Competency:</Label>
+              <Select 
+                value={selectedCompetency} 
+                onValueChange={setSelectedCompetency}
+              >
+                <SelectTrigger className="w-[500px]">
+                  <SelectValue placeholder="Choose a competency" />
+                </SelectTrigger>
+                <SelectContent className="w-[500px]">
+                  {competencies.map((comp) => (
+                    <SelectItem key={comp.quiz_section_id} value={comp.quiz_section_id}>
+                      {comp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={distributionData}
+                  margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="score"
+                    type="number"
+                    domain={[0, 10]}
+                    ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                  />
+                  <YAxis 
+                    dataKey="density"
+                    type="number"
+                    domain={[0, 'auto']}
+                    label={{ 
+                      value: 'Distribution', 
+                      angle: -90, 
+                      position: 'insideLeft',
+                      style: { textAnchor: 'middle' },
+                      offset: -35
+                    }}
+                  />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      return ['', ''];
+                    }}
+                    labelFormatter={(label) => {
+                      const matchingUnit = Object.entries(unitStats).find(([unit, stats]) => 
+                        Math.abs(stats.mean - label) < 0.1
+                      );
+                      if (matchingUnit) {
+                        return `${matchingUnit[0]}: ${matchingUnit[1].mean}`;
+                      }
+                      return '';
+                    }}
+                  />
+                  <Legend 
+                    verticalAlign="bottom"
+                    height={36}
+                    content={({ payload }) => (
+                      <div className="text-center text-sm mt-4">
+                        X-axis represents Score (0-10)
+                      </div>
+                    )}
+                  />
+
+                  <Line
+                    type="monotone"
+                    dataKey="density"
+                    stroke="#ff7300"
+                    dot={false}
+                    name="Distribution"
+                    strokeWidth={2}
+                  />
+
+                  {/* Unit mean markers */}
+                  {Object.entries(unitStats).map(([unit, stats], index) => (
+                    <ReferenceLine
+                      key={`mean-${unit}`}
+                      x={stats.mean}
+                      stroke={getUnitColor(index)}
+                      strokeWidth={2}
+                      label={{
+                        value: `${unit}: ${stats.mean}`,
+                        position: 'top',
+                        fill: getUnitColor(index)
+                      }}
+                    />
+                  ))}
+
+                  {/* Overall mean reference line */}
+                  <ReferenceLine
+                    x={overallStats.mean}
+                    stroke="#000"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: `Overall Mean: ${overallStats.mean}`,
+                      position: 'top',
+                      fill: '#000'
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </Card>
   );
-}
+};

@@ -58,6 +58,7 @@ import { BarChartView } from "../components/dashboard/BarChartView"
 import { HeatmapView } from "../components/dashboard/HeatmapView"
 import { TalentDistributionMap } from "../components/dashboard/TalentDistributionMap"
 import { BubbleMatrixPlot } from "../components/dashboard/BubbleMatrixPlot"
+import { TabView } from "@/components/dashboard/TabView"
 
 // Ensure BASE_URL is properly formatted
 const apiBaseUrl = import.meta.env.VITE_API_URL;
@@ -427,33 +428,53 @@ export default function Dashboard() {
                     <RadarChartView
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
+                      availableUnits={availableUnits}
+                      availableRegions={regions}
                       unitsByRegion={unitsByRegion}
+                      onFilterChange={handleRegionChange}
                     />
                   )}
                   {activeTab === "bar" && (
-                    <BarChartView
+                    <TabView
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
                       availableUnits={availableUnits}
                       availableRegions={regions}
+                      unitsByRegion={unitsByRegion}
+                      onFilterChange={({ regions, units }) => {
+                        if (regions) setSelectedRegions(regions);
+                        if (units) setSelectedUnits(units);
+                      }}
                     />
                   )}
                   {activeTab === "heat" && (
                     <HeatmapView
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
+                      availableUnits={availableUnits}
+                      availableRegions={regions}
+                      unitsByRegion={unitsByRegion}
+                      onFilterChange={handleRegionChange}
                     />
                   )}
                   {activeTab === "talent" && (
                     <TalentDistributionMap
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
+                      availableUnits={availableUnits}
+                      availableRegions={regions}
+                      unitsByRegion={unitsByRegion}
+                      onFilterChange={handleRegionChange}
                     />
                   )}
                   {activeTab === "bubble" && (
                     <BubbleMatrixPlot
                       selectedRegions={selectedRegions}
                       selectedUnits={selectedUnits}
+                      availableUnits={availableUnits}
+                      availableRegions={regions}
+                      unitsByRegion={unitsByRegion}
+                      onFilterChange={handleRegionChange}
                     />
                   )}
                 </div>

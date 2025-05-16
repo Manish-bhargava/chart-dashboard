@@ -20,6 +20,9 @@ import { Button } from "../ui/button"
 import { Maximize2, Minimize2 } from "lucide-react"
 import { API_URL } from '../../config'
 
+// Define bar colors at component level
+const barColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28"];
+
 export function BarChartView({ 
   selectedRegions = [], 
   selectedUnits = [], 
@@ -36,10 +39,26 @@ export function BarChartView({
   const [isLoading, setIsLoading] = useState(false)
   const [dataKeys, setDataKeys] = useState([])
   const [selectedBar, setSelectedBar] = useState(null)
+  const [isCompetencyDropdownOpen, setIsCompetencyDropdownOpen] = useState(false)
 
   // State for pending selections (before Apply)
   const [pendingSelectedCompetencies, setPendingSelectedCompetencies] = useState([]);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
+
+  // Click away handler for competency dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      const competencySelect = document.getElementById('competency-select-container');
+      if (competencySelect && !competencySelect.contains(event.target)) {
+        setIsCompetencyDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleCompetencyChange = (ids) => {
     console.log("[Debug] Competency selection changed:", {
@@ -104,7 +123,7 @@ export function BarChartView({
 
   useEffect(() => {
     const fetchChartData = async () => {
-      if (pendingSelectedCompetencies?.length === 0 || selectedUnits?.length === 0) {
+      if (selectedCompetencies?.length === 0 || selectedUnits?.length === 0) {
         setApiData(null);
         setDataKeys([]);
         return;
@@ -114,9 +133,9 @@ export function BarChartView({
       setDataKeys([]);
       setIsLoading(true);
 
-      const sectionIds = pendingSelectedCompetencies.length > 0 && typeof pendingSelectedCompetencies[0] === 'object'
-        ? pendingSelectedCompetencies.map(c => c.value)
-        : pendingSelectedCompetencies;
+      const sectionIds = selectedCompetencies.length > 0 && typeof selectedCompetencies[0] === 'object'
+        ? selectedCompetencies.map(c => c.value)
+        : selectedCompetencies;
 
       const payload = {
         unit: selectedUnits,
@@ -148,7 +167,7 @@ export function BarChartView({
 
             transformedData = Object.entries(unitDetails).map(([unitName, sections]) => {
               const unitEntry = { unit: unitName };
-              pendingSelectedCompetencies.forEach(selectedCompOrId => {
+              selectedCompetencies.forEach(selectedCompOrId => {
                 let compId, compLabel;
                 if (typeof selectedCompOrId === 'object' && selectedCompOrId !== null) {
                   compId = selectedCompOrId.value;
@@ -191,69 +210,30 @@ export function BarChartView({
     };
 
     fetchChartData();
-  }, [API_URL, selectedUnits, pendingSelectedCompetencies, availableCompetencies]);
+  }, [API_URL, selectedUnits, selectedCompetencies, availableCompetencies]);
 
-  const handleRegionChange = (newSelectedRegions) => {
-    const safeNewRegions = newSelectedRegions || [];
-    const safeUnitsByRegion = unitsByRegion || {};
-    const selectedRegionUnits = safeNewRegions.flatMap(region => safeUnitsByRegion[region] || []);
-    setSelectedUnits(selectedRegionUnits);
-    onFilterChange({ regions: safeNewRegions, units: selectedRegionUnits });
-  };
-
-  const handleUnitChange = (newSelectedUnits) => {
-    const safeNewUnits = newSelectedUnits || [];
-    setSelectedUnits(safeNewUnits);
-    const selectedUnitRegions = new Set(
-      (availableUnits || [])
-        .filter(unit => safeNewUnits.includes(unit.value))
-        .map(unit => unit.region)
-    );
-    const newRegions = Array.from(selectedUnitRegions);
-    // Only update if regions changed
-    if (JSON.stringify(newRegions.sort()) !== JSON.stringify(selectedRegions.sort())) {
-      setSelectedRegions(newRegions);
-    }
-    onFilterChange({ regions: newRegions, units: safeNewUnits });
-  };
-
-  useEffect(() => {
-    const safeUnitsByRegion = unitsByRegion || {};
-    const safeSelectedRegions = selectedRegions || [];
-    
-    if (Object.keys(safeUnitsByRegion).length > 0 && safeSelectedRegions.length > 0) {
-      const unitsToSelect = safeSelectedRegions.flatMap(region => safeUnitsByRegion[region] || []);
-      setSelectedUnits(unitsToSelect);
-      // Also notify parent
-      onFilterChange({
-        regions: safeSelectedRegions,
-        units: unitsToSelect
-      });
-    }
-  }, [unitsByRegion, selectedRegions]);
-
-  // Function to apply pending filter changes
   const handleApplyFilters = () => {
     setSelectedCompetencies(pendingSelectedCompetencies);
     setHasPendingChanges(false);
   };
 
-  const chartData = apiData || [];
   const renderChart = () => {
-    if (!chartData || chartData.length === 0) {
-      return <div className="text-center text-gray-500 py-8">No data to display for the current selection.</div>;
+    if (!apiData || !dataKeys || dataKeys.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[400px]">
+          <p className="text-gray-500">No data to display. Please select competencies and units.</p>
+        </div>
+      );
     }
 
-    const barColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28"];
-
-    console.log("Rendering chart with data:", chartData, "and keys:", dataKeys);
+    console.log("Rendering chart with data:", apiData, "and keys:", dataKeys);
 
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <BarChart data={apiData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="unit" />
-          <YAxis domain={[0, 100]} />
+          <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           {dataKeys.map((key, index) => (
@@ -280,7 +260,7 @@ export function BarChartView({
   };
 
   const renderTable = () => {
-    if (!chartData || chartData.length === 0) {
+    if (!apiData || apiData.length === 0) {
       return <div className="text-center text-gray-500 py-8">No data to display for the current selection.</div>;
     }
 
@@ -296,7 +276,7 @@ export function BarChartView({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {chartData.map((row, rowIndex) => (
+          {apiData.map((row, rowIndex) => (
             <TableRow key={rowIndex}>
               {headers.map((header, colIndex) => (
                 <TableCell key={colIndex}>
@@ -321,19 +301,16 @@ export function BarChartView({
   }
 
   return (
-    <Card className={`transition-all duration-300 ease-in-out ${isZoomed ? "fixed inset-0 z-50" : ""}`}>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card>
+      <CardHeader>
         <div>
           <CardTitle>Performance Overview</CardTitle>
           <CardDescription>Unit-wise performance in competencies.</CardDescription>
         </div>
-        <Button variant="outline" size="icon" onClick={() => setIsZoomed(!isZoomed)} className="ml-auto">
-          {isZoomed ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-        </Button>
       </CardHeader>
       <CardHeader>
         <div className="flex flex-wrap gap-4 mt-2 items-center">
-          <div className="flex items-center space-x-2 flex-1">
+          <div className="flex items-center space-x-2 w-[400px]" id="competency-select-container">
             <Label htmlFor="competency-select-bar" className="whitespace-nowrap text-sm">Competencies:</Label>
             <SimpleMultiSelect
               label="Competencies"
@@ -342,7 +319,10 @@ export function BarChartView({
               onChange={handleCompetencyChange}
               placeholder="Select Competencies"
               showCheckAll={true}
-              className="flex-1"
+              // className="flex-1"
+              className="w-[300px]"
+              isOpen={isCompetencyDropdownOpen}
+              onOpenChange={setIsCompetencyDropdownOpen}
             />
           </div>
 
@@ -370,7 +350,42 @@ export function BarChartView({
       <CardContent className="h-[400px]">
         {selectedUnits.length > 0 ? (
           dataKeys.length > 0 ? (
-            displayMode === "chart" ? renderChart() : renderTable()
+            displayMode === "chart" ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={apiData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="unit" 
+                    label={{ value: 'Units', position: 'bottom' }}
+                  />
+                  <YAxis 
+                    domain={[0, 10]} 
+                    ticks={[0, 2, 4, 6, 8, 10]} 
+                    label={{ value: 'Score', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  {dataKeys.map((key, index) => (
+                    <Bar
+                      key={key}
+                      dataKey={key}
+                      fill={barColors[index % barColors.length]}
+                      radius={[4, 4, 0, 0]}
+                      onClick={handleBarClick}
+                      style={{ cursor: 'pointer' }}
+                      fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
+                    >
+                      <LabelList
+                        dataKey={key}
+                        position="top"
+                        formatter={(value) => value?.toFixed(2) || '0'}
+                        style={{ fontSize: '10px' }} 
+                      />
+                    </Bar>
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            ) : renderTable()
           ) : (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Please select at least one competency to view the chart</p>
