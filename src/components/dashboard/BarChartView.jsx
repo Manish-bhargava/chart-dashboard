@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Label } from "../ui/label"
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table"
-import { CustomTooltip } from "./CustomTooltip"
 import { SimpleMultiSelect } from "./SimpleMultiSelect"
 import { Button } from "../ui/button"
 import { Maximize2, Minimize2 } from "lucide-react"
@@ -22,6 +21,28 @@ import { API_URL } from '../../config'
 
 // Define bar colors at component level
 const barColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28"];
+
+// Define CustomTooltip component at the top level
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 shadow-lg rounded-lg border">
+        <p className="font-semibold">{data.unit}</p>
+        {data.region && <p>Region: {data.region}</p>}
+        <p>Competency: {payload[0].dataKey}</p>
+        <p>Score: {payload[0].value?.toFixed(2) || '0'}</p>
+        {data.percentile !== undefined && (
+          <p>Percentile: {data.percentile.toFixed(2)}%</p>
+        )}
+        {data.user_count !== undefined && (
+          <p>Users: {data.user_count}</p>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
 
 export function BarChartView({ 
   selectedRegions = [], 
@@ -166,7 +187,30 @@ export function BarChartView({
             const unitDetails = data.data.unit_details;
 
             transformedData = Object.entries(unitDetails).map(([unitName, sections]) => {
-              const unitEntry = { unit: unitName };
+              // Extract location name from the unit name
+              let cleanUnitName = unitName;
+              
+              // If name is in format "Topic X (Location)"
+              const locationMatch = unitName.match(/\((.*?)\)/);
+              if (locationMatch) {
+                cleanUnitName = locationMatch[1].trim();
+              } else {
+                // If name is in format "Topic X - Location" or just "Location"
+                cleanUnitName = unitName
+                  .replace(/^Topic\s*\d+\s*[-–—]?\s*/, '')  // Remove "Topic X" prefix
+                  .replace(/\s*[-–—]\s*.+$/, '')  // Remove anything after dash
+                  .trim();
+              }
+
+              console.log('[Debug] Unit name cleaning:', {
+                original: unitName,
+                cleaned: cleanUnitName
+              });
+
+              const unitEntry = { 
+                unit: cleanUnitName,
+                originalUnit: unitName 
+              };
               selectedCompetencies.forEach(selectedCompOrId => {
                 let compId, compLabel;
                 if (typeof selectedCompOrId === 'object' && selectedCompOrId !== null) {
@@ -226,32 +270,44 @@ export function BarChartView({
       );
     }
 
-    console.log("Rendering chart with data:", apiData, "and keys:", dataKeys);
-
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={apiData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="unit" />
-          <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} />
+          <XAxis 
+            dataKey="unit" 
+            label={{ value: 'Units', position: 'bottom', dy: -10 }}
+            height={60}
+            angle={-45}
+            textAnchor="end"
+            interval={0}
+          />
+          <YAxis 
+            domain={[0, 10]} 
+            ticks={[0, 2, 4, 6, 8, 10]} 
+            label={{ value: 'Score', angle: -90, position: 'insideLeft' }}
+          />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           {dataKeys.map((key, index) => (
             <Bar
               key={key}
               dataKey={key}
+              name={key}
               fill={barColors[index % barColors.length]}
               radius={[4, 4, 0, 0]}
               onClick={handleBarClick}
               style={{ cursor: 'pointer' }}
               fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
             >
-              <LabelList
-                dataKey={key}
-                position="top"
-                formatter={(value) => value?.toFixed(2) || '0'}
-                style={{ fontSize: '10px' }} 
-              />
+              {index === 0 && (
+                <LabelList
+                  dataKey={key}
+                  position="top"
+                  formatter={(value) => value?.toFixed(2) || '0'}
+                  style={{ fontSize: '10px' }} 
+                />
+              )}
             </Bar>
           ))}
         </BarChart>
@@ -264,14 +320,16 @@ export function BarChartView({
       return <div className="text-center text-gray-500 py-8">No data to display for the current selection.</div>;
     }
 
-    const headers = ['unit', ...dataKeys];
+    const headers = ['Unit', ...dataKeys];
 
     return (
       <Table>
         <TableHeader>
           <TableRow>
             {headers.map(header => (
-              <TableCell key={header}>{header}</TableCell>
+              <TableCell key={header} className="font-semibold">
+                {header}
+              </TableCell>
             ))}
           </TableRow>
         </TableHeader>
@@ -280,7 +338,9 @@ export function BarChartView({
             <TableRow key={rowIndex}>
               {headers.map((header, colIndex) => (
                 <TableCell key={colIndex}>
-                  {colIndex === 0 ? row.unit : (row[header]?.toFixed(2) || 'N/A')}
+                  {colIndex === 0 ? 
+                    row.unit : 
+                    (row[header]?.toFixed(2) || 'N/A')}
                 </TableCell>
               ))}
             </TableRow>
@@ -356,7 +416,11 @@ export function BarChartView({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="unit" 
-                    label={{ value: 'Units', position: 'bottom' }}
+                    label={{ value: 'Units', position: 'bottom', dy: -10 }}
+                    height={60}
+                    angle={-45}
+                    textAnchor="end"
+                    interval={0}
                   />
                   <YAxis 
                     domain={[0, 10]} 
@@ -369,18 +433,21 @@ export function BarChartView({
                     <Bar
                       key={key}
                       dataKey={key}
+                      name={key}
                       fill={barColors[index % barColors.length]}
                       radius={[4, 4, 0, 0]}
                       onClick={handleBarClick}
                       style={{ cursor: 'pointer' }}
                       fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
                     >
-                      <LabelList
-                        dataKey={key}
-                        position="top"
-                        formatter={(value) => value?.toFixed(2) || '0'}
-                        style={{ fontSize: '10px' }} 
-                      />
+                      {index === 0 && (
+                        <LabelList
+                          dataKey={key}
+                          position="top"
+                          formatter={(value) => value?.toFixed(2) || '0'}
+                          style={{ fontSize: '10px' }} 
+                        />
+                      )}
                     </Bar>
                   ))}
                 </BarChart>

@@ -79,6 +79,21 @@ const SubCompetencyView = ({
     setSelectedSubCompetencies(selected);
   };
 
+  // Add click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('sub-competency-dropdown');
+      if (dropdown && !dropdown.contains(event.target)) {
+        setIsSubCompetencyDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleApplyFilter = async () => {
     if (selectedUnits.length === 0 || selectedSubCompetencies.length === 0) {
       console.log('Filter conditions not met:', {
@@ -158,13 +173,12 @@ const SubCompetencyView = ({
         const subComp = availableSubCompetencies.find(sc => sc.value === parseInt(topicId));
         console.log('Found subCompetency:', subComp);
         
-        const subCompName = subComp?.label || `Topic ${topicId}`;
         const dataPoint = {
-          name: `${subCompName} (${unit})`,
+          name: unit, // Only use unit name
           score: topicData.unit_topic_score_average,
           percentile: topicData.unit_topic_score_percentile,
           unit,
-          subCompetency: subCompName,
+          subCompetency: subComp?.label || `Topic ${topicId}`,
           totalQuestions: parseInt(topicData.topic_total_question)
         };
         console.log('Created data point:', dataPoint);
@@ -180,7 +194,7 @@ const SubCompetencyView = ({
     <Card className="p-4">
       <div className="space-y-4">
         <div className="flex flex-wrap gap-4">
-          <div className="w-[400px]">
+          <div className="w-[400px]" id="sub-competency-dropdown">
             <Label htmlFor="sub-competency-select">Sub-competencies:</Label>
             <SimpleMultiSelect
               label="Sub-competencies"

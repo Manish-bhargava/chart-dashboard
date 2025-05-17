@@ -194,8 +194,11 @@ export const TalentDistributionMap = ({
     }
   }, [selectedUnits, activeTab, selectedCompetency]);
 
+  // Use a larger color palette for units
   const getUnitColor = (index) => {
-    const colors = ['#ff7300', '#8884d8', '#82ca9d', '#ffc658', '#ff5252'];
+    const colors = [
+      '#ff7300', '#8884d8', '#82ca9d', '#ffc658', '#ff5252', '#4dd0e1', '#ba68c8', '#ffd54f', '#a1887f', '#90caf9', '#e57373', '#81c784', '#f06292', '#9575cd', '#b2dfdb', '#dce775', '#ffb74d', '#aeea00', '#00bfae', '#ff4081', '#536dfe', '#c51162', '#00b8d4', '#ffab00', '#d50000', '#00c853', '#ff6d00', '#00b8d4', '#d500f9', '#ff1744', '#00e676', '#2979ff', '#ffd600', '#00bfae', '#ff4081', '#536dfe', '#c51162', '#00b8d4', '#ffab00', '#d50000'
+    ];
     return colors[index % colors.length];
   };
 
@@ -217,7 +220,7 @@ export const TalentDistributionMap = ({
   const { aboveAverage, belowAverage } = getUnitsAboveBelowAverage();
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 h-[800px]">
       <div className="space-y-4">
         <div className="flex justify-between items-start">
           <h2 className="text-xl font-bold">Talent Distribution Map</h2>
@@ -247,7 +250,7 @@ export const TalentDistributionMap = ({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={distributionData}
-                  margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
+                  margin={{ top: 40, right: 30, left: 70, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -255,6 +258,14 @@ export const TalentDistributionMap = ({
                     type="number"
                     domain={[0, 10]}
                     ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                    label={{ 
+                      value: 'X-axis represents Score (0-10)', 
+                      position: 'bottom',
+                      offset: 15,
+                      fill: '#222',
+                      fontWeight: 700,
+                      dy: -10
+                    }}
                   />
                   <YAxis 
                     dataKey="density"
@@ -277,20 +288,12 @@ export const TalentDistributionMap = ({
                         Math.abs(stats.mean - label) < 0.1
                       );
                       if (matchingUnit) {
-                        return `${matchingUnit[0]}: ${matchingUnit[1].mean}`;
+                        return `${matchingUnit[0]}: ${matchingUnit[1].mean.toFixed(2)}`;
                       }
                       return '';
                     }}
                   />
-                  <Legend 
-                    verticalAlign="bottom"
-                    height={36}
-                    content={({ payload }) => (
-                      <div className="text-center text-sm mt-4">
-                        X-axis represents Score (0-10)
-                      </div>
-                    )}
-                  />
+                  <Legend verticalAlign="top" height={36} />
 
                   <Line
                     type="monotone"
@@ -308,11 +311,6 @@ export const TalentDistributionMap = ({
                       x={stats.mean}
                       stroke={getUnitColor(index)}
                       strokeWidth={2}
-                      label={{
-                        value: `${unit}: ${stats.mean}`,
-                        position: 'top',
-                        fill: getUnitColor(index)
-                      }}
                     />
                   ))}
 
@@ -321,14 +319,26 @@ export const TalentDistributionMap = ({
                     x={overallStats.mean}
                     stroke="#000"
                     strokeDasharray="3 3"
-                    label={{
-                      value: `Overall Mean: ${overallStats.mean}`,
-                      position: 'top',
-                      fill: '#000'
-                    }}
                   />
                 </LineChart>
               </ResponsiveContainer>
+              {/* Custom legend for unit colors */}
+              <div className="flex flex-wrap justify-center gap-4 mt-4">
+                {Object.entries(unitStats).map(([unit, stats], index) => (
+                  <div key={unit} className="flex items-center gap-2">
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 16,
+                        height: 4,
+                        backgroundColor: getUnitColor(index),
+                        borderRadius: 2,
+                      }}
+                    />
+                    <span className="text-sm">{unit}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </TabsContent>
 
@@ -356,7 +366,7 @@ export const TalentDistributionMap = ({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={distributionData}
-                  margin={{ top: 20, right: 30, left: 70, bottom: 20 }}
+                  margin={{ top: 40, right: 30, left: 70, bottom: 20 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -364,6 +374,14 @@ export const TalentDistributionMap = ({
                     type="number"
                     domain={[0, 10]}
                     ticks={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                    label={{ 
+                      value: 'X-axis represents Score (0-10)', 
+                      position: 'bottom',
+                      offset: 15,
+                      fill: '#222',
+                      fontWeight: 700,
+                      dy: -10
+                    }}
                   />
                   <YAxis 
                     dataKey="density"
@@ -386,20 +404,12 @@ export const TalentDistributionMap = ({
                         Math.abs(stats.mean - label) < 0.1
                       );
                       if (matchingUnit) {
-                        return `${matchingUnit[0]}: ${matchingUnit[1].mean}`;
+                        return `${matchingUnit[0]}: ${matchingUnit[1].mean.toFixed(2)}`;
                       }
                       return '';
                     }}
                   />
-                  <Legend 
-                    verticalAlign="bottom"
-                    height={36}
-                    content={({ payload }) => (
-                      <div className="text-center text-sm mt-4">
-                        X-axis represents Score (0-10)
-                      </div>
-                    )}
-                  />
+                  <Legend verticalAlign="top" height={36} />
 
                   <Line
                     type="monotone"
@@ -417,11 +427,6 @@ export const TalentDistributionMap = ({
                       x={stats.mean}
                       stroke={getUnitColor(index)}
                       strokeWidth={2}
-                      label={{
-                        value: `${unit}: ${stats.mean}`,
-                        position: 'top',
-                        fill: getUnitColor(index)
-                      }}
                     />
                   ))}
 
@@ -430,14 +435,26 @@ export const TalentDistributionMap = ({
                     x={overallStats.mean}
                     stroke="#000"
                     strokeDasharray="3 3"
-                    label={{
-                      value: `Overall Mean: ${overallStats.mean}`,
-                      position: 'top',
-                      fill: '#000'
-                    }}
                   />
                 </LineChart>
               </ResponsiveContainer>
+              {/* Custom legend for unit colors */}
+              <div className="flex flex-wrap justify-center gap-4 mt-4">
+                {Object.entries(unitStats).map(([unit, stats], index) => (
+                  <div key={unit} className="flex items-center gap-2">
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 16,
+                        height: 4,
+                        backgroundColor: getUnitColor(index),
+                        borderRadius: 2,
+                      }}
+                    />
+                    <span className="text-sm">{unit}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </TabsContent>
         </Tabs>

@@ -68,7 +68,7 @@ export default defineConfig(({ command, mode }) => {
   };
 
   return {
-    base: '/react/chart/',
+    base: '/',
     plugins: [react()],
     resolve: {
       alias: {

@@ -292,7 +292,7 @@ export function BubbleMatrixPlot({ selectedUnits }) {
         <CardDescription>Distribution of competencies across regions and units</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[600px]">
+        <div className="h-[520px]">
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
               margin={{
@@ -302,7 +302,11 @@ export function BubbleMatrixPlot({ selectedUnits }) {
                 left: 20,
               }}
             >
-              <CartesianGrid />
+              <CartesianGrid 
+                horizontal={true}
+                vertical={true}
+                horizontalPoints={[0, 1, 2, 3]} // Only 4 points for 4 competencies
+              />
               <XAxis
                 type="number"
                 dataKey="x"
@@ -321,6 +325,10 @@ export function BubbleMatrixPlot({ selectedUnits }) {
                   return competencies[value] || '';
                 }}
                 interval={0}
+                ticks={[0, 1, 2, 3]}
+                tick={{ fontSize: 12, dy: 0 }}
+                axisLine={false}
+                tickLine={false}
               />
               <ZAxis
                 type="number"
