@@ -16,7 +16,6 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs"
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table"
 import { SimpleMultiSelect } from "./SimpleMultiSelect"
 import { Button } from "../ui/button"
-import { Maximize2, Minimize2 } from "lucide-react"
 import { API_URL } from '../../config'
 
 // Define bar colors at component level
@@ -30,8 +29,14 @@ const CustomTooltip = ({ active, payload }) => {
       <div className="bg-white p-3 shadow-lg rounded-lg border">
         <p className="font-semibold">{data.unit}</p>
         {data.region && <p>Region: {data.region}</p>}
-        <p>Competency: {payload[0].dataKey}</p>
-        <p>Score: {payload[0].value?.toFixed(2) || '0'}</p>
+        {/* Show all competencies and their scores */}
+        {payload.map((entry, index) => (
+          <div key={index} className="mt-1">
+            <p className="text-sm">
+              <span style={{ color: entry.color }}>{entry.dataKey}</span>: {entry.value?.toFixed(2) || '0'}
+            </p>
+          </div>
+        ))}
         {data.percentile !== undefined && (
           <p>Percentile: {data.percentile.toFixed(2)}%</p>
         )}
@@ -55,7 +60,6 @@ export function BarChartView({
   const [selectedCompetencies, setSelectedCompetencies] = useState([]) // Array of IDs
   const [availableCompetencies, setAvailableCompetencies] = useState([]) // Array of {value, label}
   const [displayMode, setDisplayMode] = useState("chart")
-  const [isZoomed, setIsZoomed] = useState(false)
   const [apiData, setApiData] = useState(null) 
   const [isLoading, setIsLoading] = useState(false)
   const [dataKeys, setDataKeys] = useState([])
@@ -300,14 +304,12 @@ export function BarChartView({
               style={{ cursor: 'pointer' }}
               fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
             >
-              {index === 0 && (
-                <LabelList
-                  dataKey={key}
-                  position="top"
-                  formatter={(value) => value?.toFixed(2) || '0'}
-                  style={{ fontSize: '10px' }} 
-                />
-              )}
+              <LabelList
+                dataKey={key}
+                position="top"
+                formatter={(value) => value?.toFixed(2) || '0'}
+                style={{ fontSize: '10px' }} 
+              />
             </Bar>
           ))}
         </BarChart>
@@ -440,14 +442,12 @@ export function BarChartView({
                       style={{ cursor: 'pointer' }}
                       fillOpacity={selectedBar && selectedBar.dataKey === key ? 1 : 0.8}
                     >
-                      {index === 0 && (
-                        <LabelList
-                          dataKey={key}
-                          position="top"
-                          formatter={(value) => value?.toFixed(2) || '0'}
-                          style={{ fontSize: '10px' }} 
-                        />
-                      )}
+                      <LabelList
+                        dataKey={key}
+                        position="top"
+                        formatter={(value) => value?.toFixed(2) || '0'}
+                        style={{ fontSize: '10px' }} 
+                      />
                     </Bar>
                   ))}
                 </BarChart>

@@ -485,13 +485,9 @@ export function RadarChartView({ selectedRegions, selectedUnits, unitsByRegion =
             data.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" />
-                  <PolarRadiusAxis 
-                    angle={30} 
-                    domain={[0, 10]} 
-                    tickCount={6}
-                  />
+                  <PolarGrid stroke="#555555" />
+                  <PolarAngleAxis dataKey="subject" stroke="#333333" tick={{ fill: "#333333" }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 10]} stroke="#444444" tick={{ fill: "#333333" }} axisLine={{ stroke: "#333333" }} />
                   {selectedUnits.map((unit, index) => (
                     <Radar
                       key={unit}

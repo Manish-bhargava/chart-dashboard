@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { Maximize2, Minimize2 } from "lucide-react";
 
 // Helper function to determine cell background color based on percentile
 const getPercentileBackgroundColor = (value) => {
@@ -55,7 +54,6 @@ const getHeatMapColor = (value, isPercentile) => {
 };
 
 export function HeatmapView({ selectedUnits }) {
-  const [isZoomed, setIsZoomed] = useState(false);
   const [viewMode, setViewMode] = useState("score"); // "score" or "percentile"
   const [heatMapData, setHeatMapData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -289,7 +287,7 @@ export function HeatmapView({ selectedUnits }) {
   }
 
   return (
-    <Card className={`transition-all duration-300 ease-in-out ${isZoomed ? "fixed inset-0 z-50" : ""}`}>
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Competency Heat Map</CardTitle>
@@ -297,9 +295,6 @@ export function HeatmapView({ selectedUnits }) {
             {viewMode === "score" ? "Average scores" : "Percentile rankings"} across units and competencies
           </CardDescription>
         </div>
-        <Button variant="outline" size="icon" onClick={() => setIsZoomed(!isZoomed)} className="ml-auto">
-          {isZoomed ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-        </Button>
       </CardHeader>
       <CardHeader>
         <div className="flex items-center space-x-2">

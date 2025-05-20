@@ -279,20 +279,7 @@ export const TalentDistributionMap = ({
                       offset: -35
                     }}
                   />
-                  <Tooltip
-                    formatter={(value, name) => {
-                      return ['', ''];
-                    }}
-                    labelFormatter={(label) => {
-                      const matchingUnit = Object.entries(unitStats).find(([unit, stats]) => 
-                        Math.abs(stats.mean - label) < 0.1
-                      );
-                      if (matchingUnit) {
-                        return `${matchingUnit[0]}: ${matchingUnit[1].mean.toFixed(2)}`;
-                      }
-                      return '';
-                    }}
-                  />
+
                   <Legend verticalAlign="top" height={36} />
 
                   <Line
@@ -395,20 +382,7 @@ export const TalentDistributionMap = ({
                       offset: -35
                     }}
                   />
-                  <Tooltip
-                    formatter={(value, name) => {
-                      return ['', ''];
-                    }}
-                    labelFormatter={(label) => {
-                      const matchingUnit = Object.entries(unitStats).find(([unit, stats]) => 
-                        Math.abs(stats.mean - label) < 0.1
-                      );
-                      if (matchingUnit) {
-                        return `${matchingUnit[0]}: ${matchingUnit[1].mean.toFixed(2)}`;
-                      }
-                      return '';
-                    }}
-                  />
+                 
                   <Legend verticalAlign="top" height={36} />
 
                   <Line

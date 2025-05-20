@@ -103,7 +103,6 @@ export default function Dashboard() {
   const [selectedSubCompetencyTopicIds, setSelectedSubCompetencyTopicIds] = useState([])
   const [viewMode, setViewMode] = useState("competency")
   const [displayMode, setDisplayMode] = useState("chart")
-  const [isZoomed, setIsZoomed] = useState(false)
   const [apiData, setApiData] = useState(null)
 
   // Click away handler

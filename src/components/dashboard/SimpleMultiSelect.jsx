@@ -13,7 +13,8 @@ export function SimpleMultiSelect({
   showCheckAll = false,
   className = "",
   isOpen = false,
-  onOpenChange
+  onOpenChange,
+  valueCheck = null,
 }) {
   const [selectedValues, setSelectedValues] = useState(value)
   const [searchQuery, setSearchQuery] = useState("")
@@ -22,10 +23,17 @@ export function SimpleMultiSelect({
     setSelectedValues(value)
   }, [value])
 
+  const isValueSelected = (optionValue) => {
+    if (valueCheck && typeof valueCheck === 'function') {
+      return selectedValues.some(selectedValue => valueCheck(selectedValue, optionValue));
+    }
+    return selectedValues.includes(optionValue);
+  }
+
   const handleSelect = (optionValue) => {
     let newValues
-    if (selectedValues.includes(optionValue)) {
-      newValues = selectedValues.filter(v => v !== optionValue)
+    if (isValueSelected(optionValue)) {
+      newValues = selectedValues.filter(v => !valueCheck ? v !== optionValue : !valueCheck(v, optionValue))
     } else {
       newValues = [...selectedValues, optionValue]
     }
@@ -76,10 +84,14 @@ export function SimpleMultiSelect({
                 className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 rounded-md cursor-pointer"
                 onClick={handleSelectAll}
               >
-                <Checkbox 
-                  checked={selectedValues.length === options.length}
-                  className="mr-2"
-                />
+                <div className="flex h-4 w-4 items-center justify-center mr-2">
+                  <Checkbox 
+                    id="checkbox-select-all"
+                    checked={selectedValues.length > 0 && options.every(option => isValueSelected(option.value))}
+                    className="data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+                    onCheckedChange={handleSelectAll}
+                  />
+                </div>
                 <span>Select All</span>
               </div>
             )}
@@ -96,10 +108,14 @@ export function SimpleMultiSelect({
                     className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 rounded-md cursor-pointer"
                     onClick={() => handleSelect(option.value)}
                   >
-                    <Checkbox 
-                      checked={selectedValues.includes(option.value)}
-                      className="mr-2"
-                    />
+                    <div className="flex h-4 w-4 items-center justify-center mr-2">
+                      <Checkbox 
+                        id={`checkbox-${option.value}`}
+                        checked={isValueSelected(option.value)}
+                        className="data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+                        onCheckedChange={() => handleSelect(option.value)}
+                      />
+                    </div>
                     <span>{option.label}</span>
                   </div>
                 ))

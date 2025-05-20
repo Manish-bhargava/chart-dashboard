@@ -11,7 +11,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  LabelList
 } from 'recharts';
 
 // Define bar colors at component level
@@ -23,14 +24,14 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <div className="bg-white p-3 shadow-lg rounded-lg border">
         <p className="font-semibold">{data.name}</p>
-        <p>Competency: {payload[0].dataKey}</p>
-        <p>Score: {payload[0].value?.toFixed(1) || '0'}</p>
-        {data.percentile !== undefined && (
-          <p>Percentile: {data.percentile?.toFixed(1)}%</p>
-        )}
-        {data.totalQuestions !== undefined && (
-          <p>Total Questions: {data.totalQuestions}</p>
-        )}
+        {/* Show only subcompetency names and scores */}
+        {payload.map((entry, index) => (
+          <div key={index} className="mt-1">
+            <p className="text-sm">
+              <span style={{ color: entry.color }}>{entry.dataKey}</span>: {entry.value?.toFixed(1) || '0'}
+            </p>
+          </div>
+        ))}
       </div>
     );
   }
@@ -100,8 +101,50 @@ const SubCompetencyView = ({
 
   const handleSubCompetencyChange = (selected) => {
     console.log('handleSubCompetencyChange raw selected:', selected);
+    // Check if we're getting any values
+    if (!selected || selected.length === 0) {
+      console.log('No values selected');
+      setSelectedSubCompetencies([]);
+      return;
+    }
+
+    // Ensure all selected values are properly processed as integers
+    // This fixes potential type comparison issues when matching IDs later
+    const processedSelected = selected.map(id => {
+      // More robust conversion
+      const originalType = typeof id;
+      let processed = id;
+      if (originalType === 'string') {
+        const parsedInt = parseInt(id, 10);
+        processed = !isNaN(parsedInt) ? parsedInt : id;
+      }
+
+      console.log(`DEBUGGING - Converted ID: ${id} (${originalType}) → ${processed} (${typeof processed})`);
+      return processed;
+    });
+    
+    console.log('DEBUGGING - Processed selected IDs:', processedSelected);
+    console.log('DEBUGGING - Available subcompetencies:', 
+      availableSubCompetencies.map(sc => ({ id: sc.value, type: typeof sc.value, label: sc.label }))
+    );
+
+    // Verify each ID actually exists in available options
+    const foundIDs = processedSelected.filter(id => 
+      availableSubCompetencies.some(option => 
+        option.value === id || String(option.value) === String(id)
+      )
+    );
+    
+    if (foundIDs.length !== processedSelected.length) {
+      console.log('DEBUGGING - Some selected IDs are not in the available options!', {
+        selected: processedSelected,
+        found: foundIDs,
+        missing: processedSelected.filter(id => !foundIDs.includes(id))
+      });
+    }
+    
     // Store the selected values directly without conversion
-    setSelectedSubCompetencies(selected);
+    setSelectedSubCompetencies(processedSelected);
   };
 
   // Add click outside handler
@@ -130,14 +173,25 @@ const SubCompetencyView = ({
 
     setIsLoading(true);
     try {
+      // Ensure topic_id values are correctly formatted as integers
+      const topicIds = selectedSubCompetencies.map(id => {
+        const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+        return isNaN(numericId) ? id : numericId; // Fallback to original if parsing fails
+      });
+      
+      console.log('DEBUGGING - Prepared topic IDs for API call:', {
+        original: selectedSubCompetencies,
+        processed: topicIds
+      });
+      
       const payload = {
         unit: selectedUnits,
-        topic_id: selectedSubCompetencies,
+        topic_id: topicIds,
         report_type: "chart"  // Add this parameter
       };
       console.log('Sending request payload:', payload);
 
-      console.log('Selected subcompetencies for API call:', selectedSubCompetencies);
+      console.log('Selected subcompetencies for API call:', topicIds);
       const response = await fetch('/api/reportanalytics/getSubCometencyUnitReportTopicFilter', {
         method: 'POST',
         headers: {
@@ -185,7 +239,24 @@ const SubCompetencyView = ({
   // Process apiData when it changes to create chart data and data keys
   useEffect(() => {
     const transformDataForChart = () => {
+      // Create lookup tables for better mapping
+      const topicIdToNameMap = {};
+      
+      // Populate the lookup table
+      if (availableSubCompetencies && availableSubCompetencies.length > 0) {
+        availableSubCompetencies.forEach(subComp => {
+          if (subComp.value !== undefined && subComp.label) {
+            // Store both as string and number keys for flexibility
+            topicIdToNameMap[subComp.value] = subComp.label;
+            topicIdToNameMap[String(subComp.value)] = subComp.label;
+          }
+        });
+      }
+      
+      console.log('DEBUGGING - Created topic ID to name mapping:', topicIdToNameMap);
+      
       console.log('Starting data transformation with apiData:', apiData);
+      console.log('DEBUGGING - Available SubCompetencies:', availableSubCompetencies);
       if (!apiData) {
         console.log('No apiData available, setting empty arrays');
         setChartData([]);
@@ -205,12 +276,58 @@ const SubCompetencyView = ({
         transformedData[unit] = { name: unit };
         
         const topicDetails = unitData.topic_detail || {};
+        console.log('DEBUGGING - Topic details for unit:', unit);
+        console.log('DEBUGGING - Topic details object:', JSON.stringify(topicDetails, null, 2));
         console.log('Topic details count:', Object.keys(topicDetails).length);
         
         Object.entries(topicDetails).forEach(([topicId, topicData]) => {
-          console.log('Processing topic:', topicId);
-          const subComp = availableSubCompetencies.find(sc => sc.value === parseInt(topicId));
-          const subCompName = subComp?.label || `Topic ${topicId}`;
+          console.log('DEBUGGING - Processing topic ID:', topicId, 'Type:', typeof topicId);
+          // Convert topicId to integer for proper comparison
+          const topicIdInt = parseInt(topicId, 10);
+          console.log('DEBUGGING - Converted topicIdInt:', topicIdInt, 'Type:', typeof topicIdInt);
+          // Find the matching subcompetency in available options
+          let subComp = availableSubCompetencies.find(sc => {
+            console.log('DEBUGGING - Comparing:', {
+              'topic_id': topicIdInt,
+              'sc.value': sc.value,
+              'sc.value type': typeof sc.value,
+              'are equal': sc.value === topicIdInt,
+              'string compare': String(sc.value) === String(topicIdInt)
+            });
+            return sc.value === topicIdInt || String(sc.value) === String(topicIdInt);
+          });
+          
+          // If not found, try as string
+          if (!subComp) {
+            console.log('DEBUGGING - No match found with numeric comparison, trying string comparison');
+            subComp = availableSubCompetencies.find(sc => String(sc.value) === topicId);
+          }
+          
+          // Try lookup from our prepared mapping
+          const lookupName = topicIdToNameMap[topicId] || topicIdToNameMap[topicIdInt];
+          
+          // Use better fallback with more debugging
+          let subCompName = 'Unknown Topic';
+          if (subComp && subComp.label) {
+            subCompName = subComp.label;
+            console.log('DEBUGGING - Found matching subcomp:', subComp);
+          } else if (lookupName) {
+            // Use our lookup table as a fallback
+            subCompName = lookupName;
+            console.log('DEBUGGING - Found name from lookup table:', lookupName);
+          } else {
+            console.log('DEBUGGING - Failed to find subcompetency name for topicId:', topicId);
+            console.log('DEBUGGING - Available subcompetencies IDs:', 
+              availableSubCompetencies.map(sc => ({ 
+                id: sc.value,
+                idType: typeof sc.value,
+                name: sc.label 
+              }))
+            );
+            console.log('Could not find subcompetency name for topicId:', topicId, 
+              'Available subcompetencies:', availableSubCompetencies.map(sc => ({ id: sc.value, name: sc.label })));
+            subCompName = `Topic ${topicId}`;
+          }
           console.log('Found subCompetency:', subCompName);
           
           // Store the subcompetency name as a key
@@ -256,9 +373,16 @@ const SubCompetencyView = ({
               label="Sub-competencies"
               options={availableSubCompetencies}
               value={selectedSubCompetencies}
+              valueCheck={(selectedValue, optionValue) => {
+                return String(selectedValue) === String(optionValue);
+              }}
               onChange={(selected) => {
                 console.log('SimpleMultiSelect onChange:', selected);
-                handleSubCompetencyChange(selected);
+                // Ensure the selected values match expected format
+                handleSubCompetencyChange(selected.map(value => 
+                  // Convert to number if it's a string and represents a number
+                  typeof value === 'string' && !isNaN(parseInt(value, 10)) ? parseInt(value, 10) : value
+                ));
               }}
               placeholder="Select Sub-competencies"
               showCheckAll={true}
@@ -311,8 +435,15 @@ const SubCompetencyView = ({
                     fill={barColors[index % barColors.length]}
                     radius={[4, 4, 0, 0]}
                     fillOpacity={0.8}
-                  />
-                ))}
+                    >
+                      <LabelList
+                        dataKey={key}
+                        position="top"
+                        formatter={(value) => value?.toFixed(1) || '0'}
+                        style={{ fontSize: '10px' }}
+                      />
+                    </Bar>
+                  ))}
               </BarChart>
             </ResponsiveContainer>
           </div>
