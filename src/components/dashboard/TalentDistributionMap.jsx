@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "../ui/card";
 import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
@@ -16,10 +16,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 const TalentDistributionMap = ({
-  selectedUnits = [],
-  availableUnits = [],
+  selectedUnits: propSelectedUnits = [],
+  selectedRegions = [],
+  availableUnits: propAvailableUnits = [],
+  availableRegions = [],
+  unitsByRegion = {},
   onFilterChange
 }) => {
+  // Handle both old and new prop structures
+  const selectedUnits = Array.isArray(propSelectedUnits) 
+    ? propSelectedUnits 
+    : [];
+  
+  const availableUnits = Array.isArray(propAvailableUnits) 
+    ? propAvailableUnits 
+    : [];
   // State management
   const [distributionData, setDistributionData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,8 +73,17 @@ const TalentDistributionMap = ({
   };
 
   // Data fetching
-  const fetchCompetencies = async () => {
+  const [isLoadingCompetencies, setIsLoadingCompetencies] = useState(false);
+
+  const fetchCompetencies = useCallback(async () => {
+    // If we have selectedRegions but no selectedUnits, don't fetch yet
+    if (selectedRegions.length > 0 && selectedUnits.length === 0) {
+      console.log('Regions selected but no units, skipping competency fetch');
+      return;
+    }
+    
     try {
+      setIsLoadingCompetencies(true);
       console.log('Fetching competencies from /api/reportanalytics/getMainCompetency');
       const response = await fetch('/api/reportanalytics/getMainCompetency', {
         method: 'POST',
@@ -95,20 +115,17 @@ const TalentDistributionMap = ({
         );
         console.log('Processed Competencies:', allCompetencies);
         setCompetencies(allCompetencies);
-        
-        // Auto-select first competency if none selected
-        if (!selectedCompetency && allCompetencies.length > 0) {
-          setSelectedCompetency(allCompetencies[0].quiz_section_id);
-        }
       } else {
-        console.error('Unexpected data format from competency API:', data);
-        setCompetencies([]);
+        console.error('Error processing competency data:', data);
+        throw new Error('Invalid data format received from server');
       }
     } catch (error) {
-      console.error('Error in fetchCompetencies:', error);
+      console.error('Error fetching competencies:', error);
       setCompetencies([]);
+    } finally {
+      setIsLoadingCompetencies(false);
     }
-  };
+  }, [selectedRegions, selectedUnits]);
 
   const fetchDistributionData = async () => {
     if (!selectedUnits?.length) { 
@@ -251,6 +268,52 @@ const TalentDistributionMap = ({
     setActiveTab(value);
   };
 
+  // Show a message when no units are selected
+  const renderNoUnitsSelected = () => (
+    <div className="h-[400px] flex flex-col items-center justify-center text-center p-4">
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg max-w-md">
+        <h3 className="font-medium text-blue-600 dark:text-blue-400 mb-2">No Units Selected</h3>
+        <p className="text-sm text-blue-500 dark:text-blue-400 mb-4">
+          Please select one or more units to view the talent distribution.
+        </p>
+      </div>
+    </div>
+  );
+
+  // Show a message when no competency is selected
+  const renderNoCompetencySelected = () => (
+    <div className="h-[400px] flex flex-col items-center justify-center text-center p-4">
+      <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-lg max-w-md">
+        <h3 className="font-medium text-amber-600 dark:text-amber-400 mb-2">No Competency Selected</h3>
+        <p className="text-sm text-amber-500 dark:text-amber-400 mb-4">
+          Please select at least one competency to view the distribution.
+        </p>
+      </div>
+    </div>
+  );
+
+  // Loading state for mean and std dev
+  const renderLoadingStats = () => (
+    <div className="animate-pulse space-y-1">
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+      <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+    </div>
+  );
+
+  // Loading state for unit lists (above/below average)
+  const renderLoadingUnitLists = () => (
+    <div className="space-y-1">
+      <div className="flex items-center">
+        <span className="font-medium text-green-600 mr-2">Above Avg: </span>
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+      </div>
+      <div className="flex items-center">
+        <span className="font-medium text-red-600 mr-2">Below Avg: </span>
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+      </div>
+    </div>
+  );
+
   // Main render
   const renderErrorState = () => (
     <div className="h-[400px] flex flex-col items-center justify-center text-center p-4">
@@ -270,108 +333,143 @@ const TalentDistributionMap = ({
     </div>
   );
 
-  const renderChart = () => (
-    <div className="h-[400px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={distributionData} margin={{ top: 40, right: 30, left: 70, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="score"
-            type="number"
-            domain={[0, 10]}
-            ticks={[0, 2, 4, 6, 8, 10]}
-            label={{ 
-              value: 'Score (0-10)', 
-              position: 'bottom',
-              offset: 15,
-              fill: '#222',
-              fontWeight: 600,
-            }}
-          />
-          <YAxis 
-            dataKey="density"
-            type="number"
-            domain={[0, 'auto']}
-            label={{ 
-              value: 'Distribution', 
-              angle: -90, 
-              position: 'insideLeft',
-              style: { textAnchor: 'middle' },
-              offset: -35
-            }}
-          />
-          <Legend verticalAlign="top" height={36} />
-          <Line
-            type="monotone"
-            dataKey="density"
-            stroke="#3b82f6"
-            dot={false}
-            name="Distribution"
-            strokeWidth={2}
-          />
-          {Object.entries(unitStats).map(([unit, stats], index) => (
-            <ReferenceLine
-              key={`mean-${unit}`}
-              x={stats.mean}
-              stroke={getUnitColor(index)}
-              strokeWidth={2}
-            />
-          ))}
-          <ReferenceLine
-            x={overallStats.mean}
-            stroke="#000"
-            strokeDasharray="3 3"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      <div className="flex flex-wrap justify-center gap-4 mt-4">
-        {Object.entries(unitStats).map(([unit, stats], index) => (
-          <div key={unit} className="flex items-center gap-2">
-            <span
-              style={{
-                display: 'inline-block',
-                width: 16,
-                height: 4,
-                backgroundColor: getUnitColor(index),
-                borderRadius: 2,
+  const renderChart = () => {
+    // Don't render chart if no data
+    if (distributionData.length === 0) return null;
+    
+    return (
+      <div className="min-h-[300px] w-full">
+        <ResponsiveContainer width="100%" height={250 + (selectedUnits.length * 8)}>
+          <LineChart data={distributionData} margin={{ top: 40, right: 30, left: 70, bottom: 50 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="score"
+              type="number"
+              domain={[0, 10]}
+              ticks={[0, 2, 4, 6, 8, 10]}
+              tick={{ dy: 5 }}
+              axisLine={false}
+              tickLine={false}
+              label={{ 
+                value: 'Score (0-10)', 
+                position: 'bottom',
+                offset: 30,
+                fill: '#222',
+                fontWeight: 600,
+                style: {
+                  textAnchor: 'middle',
+                  fontSize: '14px'
+                }
               }}
             />
-            <span className="text-sm">{unit}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderCompetencySelector = () => (
-    <div className="w-full max-w-[500px] mx-auto">
-      <Label>Select Competency:</Label>
-      <Select 
-        value={selectedCompetency} 
-        onValueChange={setSelectedCompetency}
-        disabled={isLoading}
-      >
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Choose a competency" />
-        </SelectTrigger>
-        <SelectContent>
-          {competencies.map((comp) => (
-            <SelectItem key={comp.quiz_section_id} value={comp.quiz_section_id}>
-              {comp.name}
-            </SelectItem>
+            <YAxis 
+              dataKey="density"
+              type="number"
+              domain={[0, 'auto']}
+              label={{ 
+                value: 'Distribution', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle' },
+                offset: -35
+              }}
+            />
+            <Legend verticalAlign="top" height={36} />
+            <Line
+              type="monotone"
+              dataKey="density"
+              stroke="#3b82f6"
+              dot={false}
+              name="Distribution"
+              strokeWidth={2}
+            />
+            {Object.entries(unitStats).map(([unit, stats], index) => (
+              <ReferenceLine
+                key={`mean-${unit}`}
+                x={stats.mean}
+                stroke={getUnitColor(index)}
+                strokeWidth={2}
+              />
+            ))}
+            <ReferenceLine
+              x={overallStats.mean}
+              stroke="#000"
+              strokeDasharray="3 3"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+        <div className="flex flex-wrap justify-center gap-4 mt-4">
+          {Object.entries(unitStats).map(([unit, stats], index) => (
+            <div key={unit} className="flex items-center gap-2">
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 16,
+                  height: 4,
+                  backgroundColor: getUnitColor(index),
+                  borderRadius: 2,
+                }}
+              />
+              <span className="text-sm">{unit}</span>
+            </div>
           ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+        </div>
+      </div>
+    );
+  };
+
+
+
+  const renderCompetencySelector = () => {
+    const selectedCompetencyName = competencies.find(c => c.quiz_section_id === selectedCompetency)?.name || '';
+    const displayText = selectedCompetency 
+      ? `Selected: ${selectedCompetencyName} (1 of ${competencies.length})`
+      : `Select a competency (${competencies.length} available)`;
+      
+    return (
+      <div className="w-full max-w-[500px] mx-auto">
+        <Label>Competency:</Label>
+        {isLoadingCompetencies ? (
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-full" />
+            <p className="text-xs text-muted-foreground text-center">Loading competencies...</p>
+          </div>
+        ) : (
+          <Select 
+            value={selectedCompetency || ""} 
+            onValueChange={setSelectedCompetency}
+            disabled={competencies.length === 0}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                <span className="truncate">
+                  {displayText}
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {competencies.map((comp) => (
+                <SelectItem key={comp.quiz_section_id} value={comp.quiz_section_id}>
+                  {comp.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    );
+  };
 
   // Effects
   useEffect(() => {
-    console.log('Component mounted, fetching competencies');
+    console.log('Component mounted or dependencies changed, fetching competencies');
     const loadData = async () => {
       try {
-        setIsLoading(true);
-        await fetchCompetencies();
+        // Only fetch if we have selected units or if we're in a context without region/unit selection
+        if (selectedUnits.length > 0 || (selectedRegions.length === 0 && Object.keys(unitsByRegion).length === 0)) {
+          setIsLoading(true);
+          await fetchCompetencies();
+        }
       } catch (error) {
         console.error('Error in initial data load:', error);
       } finally {
@@ -383,9 +481,9 @@ const TalentDistributionMap = ({
     
     // Cleanup function
     return () => {
-      console.log('Component unmounting');
+      console.log('Component unmounting or dependencies changed');
     };
-  }, []);
+  }, [selectedUnits, selectedRegions, unitsByRegion]);
 
   useEffect(() => {
     console.log('Dependencies changed - selectedUnits:', selectedUnits, 
@@ -405,50 +503,179 @@ const TalentDistributionMap = ({
     return () => clearTimeout(timer);
   }, [selectedUnits, activeTab, selectedCompetency]);
 
+  // Determine if we should show the stats (not in competency view or if a competency is selected)
+  const shouldShowStats = activeTab !== 'competency' || (activeTab === 'competency' && selectedCompetency);
+
+  // Render the main component
   return (
-    <Card className="p-6 h-[800px] flex flex-col">
+    <Card className="p-6 min-h-[800px] flex flex-col">
       <div className="space-y-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start">
           <h2 className="text-xl font-bold">Talent Distribution Map</h2>
-          <div className="text-right">
-            <p className="font-medium text-sm text-muted-foreground mb-2">
-              Mean: <span className="font-semibold">{overallStats.mean.toFixed(2)}</span> | 
-              Std Dev: <span className="font-semibold">{overallStats.stdDev.toFixed(2)}</span>
-            </p>
-            <div className="text-sm space-y-1">
-              <div>
-                <span className="font-medium text-green-600">Above Avg: </span>
-                <span>{aboveAverage.join(', ') || 'None'}</span>
-              </div>
-              <div>
-                <span className="font-medium text-red-600">Below Avg: </span>
-                <span>{belowAverage.join(', ') || 'None'}</span>
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="w-[400px]"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="unit">Unit View</TabsTrigger>
+              <TabsTrigger value="competency">Competency View</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        
+        {/* Show competency selector only in competency view */}
+        {activeTab === 'competency' && (
+          <div className="w-full max-w-md">
+            {renderCompetencySelector()}
+          </div>
+        )}
+        
+        {/* Main chart area */}
+        <div className="flex-1">
+          {isLoading ? (
+            <div className="h-[400px] flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                <p>Loading distribution data...</p>
               </div>
             </div>
-          </div>
+          ) : activeTab === 'competency' && !selectedCompetency ? (
+            <div className="h-[400px] flex flex-col items-center justify-center text-center p-6">
+              <div className="bg-blue-50 p-4 rounded-full mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Competency Selected</h3>
+              <p className="text-gray-500 max-w-md">Please select a competency from the dropdown above to view the distribution chart.</p>
+            </div>
+          ) : distributionData.length > 0 ? (
+            <div className="space-y-6">
+              {/* Statistics Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold mb-2">Overall Statistics</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Mean Score:</span>
+                      <span className="font-medium">{overallStats.mean.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Standard Deviation:</span>
+                      <span className="font-medium">{overallStats.stdDev.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-semibold mb-2">Unit Comparison</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-green-600 font-medium mb-1">Units Above Average:</div>
+                      <div className="text-sm">
+                        {aboveAverage.length > 0 
+                          ? aboveAverage.join(', ') 
+                          : 'No units above average'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-red-600 font-medium mb-1">Units Below Average:</div>
+                      <div className="text-sm">
+                        {belowAverage.length > 0 
+                          ? belowAverage.join(', ') 
+                          : 'No units below average'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Chart */}
+              <div className="min-h-[300px] w-full">
+                <ResponsiveContainer width="100%" height={250 + (selectedUnits.length * 8)}>
+                  <LineChart data={distributionData} margin={{ top: 40, right: 30, left: 70, bottom: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="score"
+                      type="number"
+                      domain={[0, 10]}
+                      ticks={[0, 2, 4, 6, 8, 10]}
+                      tick={{ dy: 5 }}
+                      axisLine={false}
+                      tickLine={false}
+                      label={{ 
+                        value: 'Score (0-10)', 
+                        position: 'bottom',
+                        offset: 30,
+                        fill: '#222',
+                        fontWeight: 600,
+                        style: {
+                          textAnchor: 'middle',
+                          fontSize: '14px'
+                        }
+                      }}
+                    />
+                    <YAxis 
+                      dataKey="density"
+                      type="number"
+                      domain={[0, 'auto']}
+                      label={{ 
+                        value: 'Distribution', 
+                        angle: -90, 
+                        position: 'insideLeft',
+                        style: { textAnchor: 'middle' },
+                        offset: -35
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="density"
+                      stroke="#3b82f6"
+                      dot={false}
+                      name="Distribution"
+                      strokeWidth={2}
+                    />
+                    {Object.entries(unitStats).map(([unit, stats], index) => (
+                      <ReferenceLine
+                        key={`mean-${unit}`}
+                        x={stats.mean}
+                        stroke={getUnitColor(index)}
+                        strokeWidth={2}
+                      />
+                    ))}
+                    <ReferenceLine
+                      x={overallStats.mean}
+                      stroke="#000"
+                      strokeDasharray="3 3"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap justify-center gap-4 mt-4">
+                  {Object.entries(unitStats).map(([unit, stats], index) => (
+                    <div key={unit} className="flex items-center gap-2">
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 16,
+                          height: 4,
+                          backgroundColor: getUnitColor(index),
+                          borderRadius: 2,
+                        }}
+                      />
+                      <span className="text-sm">{unit} (Mean: {stats.mean.toFixed(2)}, SD: {stats.stdDev.toFixed(2)})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-[400px] flex items-center justify-center">
+              <p className="text-gray-500">No data available for the selected units.</p>
+            </div>
+          )}
         </div>
-
-        <Tabs 
-          value={activeTab} 
-          onValueChange={handleTabChange} 
-          className="flex-1 flex flex-col"
-        >
-          <TabsList className="w-fit">
-            <TabsTrigger value="unit">Unit-wise</TabsTrigger>
-            <TabsTrigger value="competency">Competency-wise</TabsTrigger>
-          </TabsList>
-          
-          <div className="flex-1 pt-4">
-            <TabsContent value="unit" className="h-full m-0">
-              {isLoading ? renderChartSkeleton() : distributionData.length > 0 ? renderChart() : renderErrorState()}
-            </TabsContent>
-
-            <TabsContent value="competency" className="h-full m-0 space-y-6">
-              {renderCompetencySelector()}
-              {isLoading ? renderChartSkeleton() : distributionData.length > 0 ? renderChart() : renderErrorState()}
-            </TabsContent>
-          </div>
-        </Tabs>
       </div>
     </Card>
   );
