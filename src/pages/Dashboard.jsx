@@ -25,7 +25,7 @@ import {
 } from "recharts"
 import { Activity, BarChart2, PieChart, Map, Circle, ChevronDown, CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
-
+import bllimage from "../assets/BLL_Logo.png"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card"
 import { Button } from "../components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select"
@@ -287,11 +287,13 @@ export default function Dashboard() {
       <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Sidebar */}
         <Sidebar className="w-64 bg-gradient-to-b from-indigo-600 to-indigo-700 text-white">
-          <SidebarHeader className="border-b border-indigo-500">
-            <div className="flex items-center p-4">
-              <div className="flex items-center gap-2">
-                <Activity className="h-6 w-6 text-indigo-200" />
-                <h1 className="text-xl font-bold text-white">Bodhi Labs</h1>
+          <SidebarHeader className="border-b border-indigo-500 bg-gray-100 p-4 mb-2 h-[110px] ">
+            <div className="flex items-center p-4 ">
+              <div className="flex items-center gap-2 ">
+
+                <div className="text-xl font-bold ">
+                <img src={bllimage} className="" alt=".." />
+                </div>
               </div>
             </div>
           </SidebarHeader>

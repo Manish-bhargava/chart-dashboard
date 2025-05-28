@@ -4,6 +4,7 @@ import { RadarChart } from './RadarChart';
 import { HeatMap } from './HeatMap';
 import { SubCompetencyView } from './SubCompetencyView';
 import { TalentDistributionMap } from './TalentDistributionMap';
+import BLLLogo from '../../assets/BLL_Logo.png';
 
 const Dashboard = () => {
   const [selectedRegions, setSelectedRegions] = useState([]);
@@ -24,7 +25,9 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <h1 className="text-2xl font-bold mb-6">Nurse Assessment Dashboard</h1>
+      <div className="flex justify-center mb-6">
+        <img src={BLLLogo} alt="BLL Logo" className="h-16" />
+      </div>
       
       {/* Talent Distribution Map */}
       <TalentDistributionMap
