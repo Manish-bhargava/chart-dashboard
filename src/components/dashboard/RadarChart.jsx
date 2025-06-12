@@ -26,6 +26,14 @@
 // } from "@/data/sampleData"
 // const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+const COLORS = [
+  '#2ecc71', '#9b59b6', '#1abc9c', '#3498db', '#f1c40f',
+  '#e74c3c', '#16a085', '#27ae60', '#2980b9', '#8e44ad',
+  '#2c3e50', '#f39c12', '#d35400', '#1abc9c', '#22313f',
+  '#4CAF50', '#03A9F4', '#FF9800', '#8BC34A', '#2196F3',
+  '#009688', '#FFC107', '#FF69B4', '#8E24AA', '#4CAF50'
+];
+
 // export function RadarChartView({ selectedRegions, selectedUnits }) {
 //   const [selectedCompetencies, setSelectedCompetencies] = useState(["Leadership"])
 //   const [selectedSubCompetencies, setSelectedSubCompetencies] = useState([])

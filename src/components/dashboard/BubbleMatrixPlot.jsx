@@ -124,6 +124,12 @@ export function BubbleMatrixPlot({ selectedUnits }) {
           
           // Get competencies from section details
           const competencyList = Object.values(section_detail).map(section => section.section_name);
+          // If 'Situation Management' is the bottom-most competency, swap it with the one above it.
+          // If 'Situation Management' is the bottom-most competency, swap it with the one above it.
+          const smIndex = competencyList.indexOf('Situation Management');
+          if (smIndex === 0 && competencyList.length > 1) {
+            [competencyList[0], competencyList[1]] = [competencyList[1], competencyList[0]];
+          }
           setCompetencies(competencyList);
           
           // Group units by region using API data
@@ -320,21 +326,17 @@ export function BubbleMatrixPlot({ selectedUnits }) {
               <YAxis
                 type="number"
                 dataKey="y"
-                domain={[0, competencies.length - 1]}
+                domain={[-0.5, competencies.length - 0.5]}
                 tickFormatter={(value) => {
                   return competencies[value] || '';
                 }}
                 interval={0}
-                ticks={[0, 1, 2, 3]}
+                ticks={competencies.map((_, index) => index)}
                 tick={{ fontSize: 12, dy: 0 }}
                 axisLine={false}
                 tickLine={false}
               />
-              <ZAxis
-                type="number"
-                dataKey="z"
-                range={[200, 2000]}
-              />
+              <ZAxis type="number" dataKey="z" range={[100, 1000]} />
               <Tooltip content={<CustomTooltip />} />
               {Object.entries(COMPETENCY_COLORS).map(([competency, color]) => (
                 <Scatter

@@ -222,11 +222,13 @@ const TalentDistributionMap = ({
 
   // UI Components
   const getUnitColor = (index) => {
-    const colors = [
-      '#ff7300', '#8884d8', '#82ca9d', '#ffc658', '#ff5252', '#4dd0e1', '#ba68c8', 
-      '#ffd54f', '#a1887f', '#90caf9', '#e57373', '#81c784', '#f06292', '#9575cd'
+    const COLORS = [
+      '#000000', '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+      '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22',
+      '#17becf', '#ffc658', '#4dd0e1', '#ba68c8', '#a1887f',
+      '#90caf9', '#e57373', '#81c784', '#f06292', '#9575cd'
     ];
-    return colors[index % colors.length];
+    return COLORS[index % COLORS.length];
   };
 
   const getUnitsAboveBelowAverage = () => {

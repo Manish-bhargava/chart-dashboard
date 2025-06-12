@@ -287,8 +287,8 @@ export default function Dashboard() {
       <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Sidebar */}
         <Sidebar className="w-64 bg-gradient-to-b from-indigo-600 to-indigo-700 text-white">
-          <SidebarHeader className="border-b border-indigo-500 bg-gray-100 p-4 mb-2 h-[110px] ">
-            <div className="flex items-center p-4 ">
+          <SidebarHeader className="border-b border-indigo-500 p-4 mb-2 h-[140px] ">
+            <div className="flex items-center bg-white w-[90%] p-4 h-[100%] rounded">
               <div className="flex items-center gap-2 ">
 
                 <div className="text-xl font-bold ">
@@ -357,7 +357,8 @@ export default function Dashboard() {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="border-t border-indigo-500 p-4">
-            <div className="text-xs text-indigo-200"> 2025 Bodhi Labs</div>
+            <div className="text-xs text-indigo-200"> <p>© {new Date().getFullYear()} Bodhi Learning Labs</p>
+            </div>
           </SidebarFooter>
         </Sidebar>
 
@@ -481,20 +482,7 @@ export default function Dashboard() {
                 </div>
                
                 {/* Chart Controls */}
-                <div className="mt-6 flex flex-wrap gap-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded-full bg-indigo-500"></div>
-                    <span className="text-sm text-indigo-700">Selected Units</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded-full bg-indigo-300"></div>
-                    <span className="text-sm text-indigo-700">Benchmark</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded-full bg-indigo-200"></div>
-                    <span className="text-sm text-indigo-700">Average</span>
-                  </div>
-                </div>
+              
               </div>
             </div>
           </main>
