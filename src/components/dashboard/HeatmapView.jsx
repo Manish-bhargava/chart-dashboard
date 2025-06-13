@@ -178,15 +178,27 @@ export function HeatmapView({ selectedUnits }) {
     return { headers, rows, competencyOptions };
   }, [heatMapData, viewMode, selectedCompetencyFilter, selectedUnits]);
 
-  const performanceLegend = [
-    { label: '90%+: Top Tier', color: 'bg-blue-800' },         // dark blue
-    { label: '80-89%: High Performing', color: 'bg-emerald-600' }, // emerald
-    { label: '70-79%: Above Average', color: 'bg-purple-600' }, // purple
-    { label: '60-69%: Average', color: 'bg-amber-400' },       // amber
-    { label: '50-59%: Below Average', color: 'bg-orange-500' }, // orange
-    { label: '40-49%: Needs Focus', color: 'bg-red-600' },     // bright red
-    { label: '<40%: Priority Concern', color: 'bg-red-900' },   // dark red
+  const percentileLegend = [
+    { label: '90%+: Top Tier', color: 'bg-blue-800' },
+    { label: '80-89%: High Performing', color: 'bg-emerald-600' },
+    { label: '70-79%: Above Average', color: 'bg-purple-600' },
+    { label: '60-69%: Average', color: 'bg-amber-400' },
+    { label: '50-59%: Below Average', color: 'bg-orange-500' },
+    { label: '40-49%: Needs Focus', color: 'bg-red-600' },
+    { label: '<40%: Priority Concern', color: 'bg-red-900' },
   ];
+
+  const scoreLegend = [
+    { label: '9-10: Top Tier', color: 'bg-blue-800' },
+    { label: '8-8.9: High Performing', color: 'bg-emerald-600' },
+    { label: '7-7.9: Above Average', color: 'bg-purple-600' },
+    { label: '6-6.9: Average', color: 'bg-amber-400' },
+    { label: '5-5.9: Below Average', color: 'bg-orange-500' },
+    { label: '4-4.9: Needs Focus', color: 'bg-red-600' },
+    { label: '<4: Priority Concern', color: 'bg-red-900' },
+  ];
+
+  const performanceLegend = viewMode === 'score' ? scoreLegend : percentileLegend;
 
   // TODO: User needs to provide scoreRangesForColoring for 'scores' viewMode
   const scoreRangesForColoring = {}; // Example: { topTier: {min: 45, max: 50, color: 'bg-green-600'}, ... }
