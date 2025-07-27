@@ -1,12 +1,57 @@
-# React + Vite
+# 📊 Chart Dashboard – Internship Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is a **feature-rich, data visualization dashboard** I built during my internship. It enables users to view analytical insights through powerful and interactive charts. The dashboard helps stakeholders make data-driven decisions by visualizing user-wise and competency-based performance.
 
-Currently, two official plugins are available:
+---
+## 🧑‍💻 Internship Details
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+**Company**: Bodhi learning labs  
+ **Role**: Frontend Developer Intern  
+**Duration**: april 2025 –  june 2025  
+**Location**: gurgoan / delhi, India 
 
-## Expanding the ESLint configuration
+	⁠As a Frontend Intern at *[Bodhi learning labs], I was responsible for developing a reusable and dynamic chart dashboard for internal performance analytics. I worked closely with the backend team to fetch, process, and visualize user-wise and unit-wise data using advanced charting libraries like **Recharts*. This tool significantly improved how stakeholders consumed large datasets.
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 Features
+
+- ✅ **Modular Chart Components using Recharts**
+  - 🔥 **Heat Map**
+  - 📍 **Bubble Plot**
+  - 📉 **Bar Chart**
+  - 🧭 **Radar Chart**
+  - 📈 **Line Chart**
+  - 🥧 **Pie Chart**
+
+- 🎯 **Interactive Filtering**
+  - Filter reports by Unit, Test, Competency, and User
+  - Real-time data fetching based on selected filters
+
+- 📤 **Excel Report Export**
+  - Export visualized data as `.xlsx` using **ExcelJS**
+
+- 🧱 **Dynamic Table Rendering**
+  - Auto-generated tables from API data
+  - Supports percentiles, scores, and sub-competencies
+
+- 📱 **Responsive & Clean UI**
+  - Mobile and desktop friendly
+  - Built with **Tailwind CSS**
+
+---
+
+## 🛠️ Tech Stack
+
+| Frontend        | Charts & Export    | API Integration |
+|-----------------|--------------------|-----------------|
+| React.js        | Recharts, ExcelJS  | Axios           |
+| Tailwind CSS    |                    | REST APIs       |
+| React Table     |                    |                 |
+
+---
+
+## 📈 Project Impact
+
+•⁠  ⁠📉 Reduced report preparation time by *80%*
+•⁠  ⁠📊 Enabled deep analysis through *visual insights* rather than plain text
+•⁠  ⁠🤝 Boosted team productivity by automating manual reporting tasks
+•⁠  ⁠📂 Built a maintainable and scalable codebase for future dashboards
